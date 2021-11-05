@@ -6,6 +6,7 @@ import froca from './froca.js';
 import noteTooltipService from './note_tooltip.js';
 import protectedSessionService from './protected_session.js';
 import dateNotesService from './date_notes.js';
+import customNotesService from './custom_notes.js';
 import searchService from './search.js';
 import CollapsibleWidget from '../widgets/collapsible_widget.js';
 import ws from "./ws.js";
@@ -422,6 +423,16 @@ function FrontendScriptApi(startNote, currentNote, originEntity = null, $contain
      * @return {Promise<NoteShort>}
      */
     this.getYearNote = dateNotesService.getYearNote;
+
+    /**
+     * Returns custom date-note. If it doesn't exist, it is automatically created.
+     *
+     * @method
+     * @param {string} rootNoteLabel - e.g. calendarRoot
+     * @param {string} date - e.g. "2019-04-29"
+     * @return {Promise<NoteShort>}
+     */
+     this.getCustomNote = customNotesService.getCustomNote;
 
     /**
      * Hoist note in the current tab. See https://github.com/zadam/trilium/wiki/Note-hoisting

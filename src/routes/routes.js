@@ -32,6 +32,7 @@ const senderRoute = require('./api/sender');
 const filesRoute = require('./api/files');
 const searchRoute = require('./api/search');
 const specialNotesRoute = require('./api/special_notes.js');
+const customNotesRoute = require('./api/custom_notes');
 const noteMapRoute = require('./api/note_map.js');
 const clipperRoute = require('./api/clipper');
 const similarNotesRoute = require('./api/similar_notes');
@@ -270,6 +271,8 @@ function register(app) {
     apiRoute(POST, '/api/special-notes/save-sql-console', specialNotesRoute.saveSqlConsole);
     apiRoute(POST, '/api/special-notes/search-note', specialNotesRoute.createSearchNote);
     apiRoute(POST, '/api/special-notes/save-search-note', specialNotesRoute.saveSearchNote);
+
+    apiRoute(GET, '/api/custom-notes/:customRoot/:date', customNotesRoute.getDateNote);
 
     route(GET, '/api/images/:noteId/:filename', [auth.checkApiAuthOrElectron], imageRoute.returnImage);
     route(POST, '/api/images', [auth.checkApiAuthOrElectron, uploadMiddleware, csrfMiddleware], imageRoute.uploadImage, apiResultHandler);
