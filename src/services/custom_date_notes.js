@@ -196,7 +196,7 @@ function getWeekNoteTitle(rootNote, dayNumber, dateObj) {
 /** @return {Note} */
 function getWeekNote(dateStr, rootNoteLabel, rootNote) {
     const dateObj = getStartOfTheWeek(dateUtils.parseLocalDate(dateStr), 'monday');
-    dateStr = dateUtils.utcDateStr(dateObj);
+    dateStr = dateUtils.utcDateStr(dateObj).substr(0, 10);
 
     if (!rootNote) {
         rootNote = getRootNote(rootNoteLabel);
