@@ -1,6 +1,7 @@
 import libraryLoader from "../../services/library_loader.js";
 import utils from "../../services/utils.js";
 import dateNoteService from "../../services/date_notes.js";
+import customNotesService from "../../services/custom_notes.js";
 import server from "../../services/server.js";
 import appContext from "../../services/app_context.js";
 import RightDropdownButtonWidget from "./right_dropdown_button.js";
@@ -55,7 +56,7 @@ export default class CalendarWidget extends RightDropdownButtonWidget {
         this.$dropdownContent.on('click', '.calendar-date', async ev => {
             const date = $(ev.target).closest('.calendar-date').attr('data-calendar-date');
 
-            const note = await dateNoteService.getDateNote(date);
+            const note = await customNotesService.getDateNote("calendarRoot", date);
 
             if (note) {
                 appContext.tabManager.getActiveContext().setNote(note.noteId);
