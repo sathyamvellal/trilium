@@ -55,12 +55,14 @@ function getBundlesWithLabel(label, value) {
 
 function getStartupBundles(req) {
     if (!process.env.TRILIUM_SAFE_MODE) {
+        const bundles = getBundlesWithLabel("run", "startup");
         if (req.query.mobile === "true") {
-            return getBundlesWithLabel("run", "mobileStartup");
+            bundles.concat(getBundlesWithLabel("run", "mobileStartup"));
         }
         else {
-            return getBundlesWithLabel("run", "frontendStartup");
+            bundles.concat(getBundlesWithLabel("run", "frontendStartup"));
         }
+        return bundles;
     }
     else {
         return [];
