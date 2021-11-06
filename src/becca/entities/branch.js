@@ -35,19 +35,19 @@ class Branch extends AbstractEntity {
     }
 
     update([branchId, noteId, parentNoteId, prefix, notePosition, isExpanded, utcDateModified]) {
-        /** @param {string} */
+        /** @type {string} */
         this.branchId = branchId;
-        /** @param {string} */
+        /** @type {string} */
         this.noteId = noteId;
-        /** @param {string} */
+        /** @type {string} */
         this.parentNoteId = parentNoteId;
-        /** @param {string} */
+        /** @type {string} */
         this.prefix = prefix;
-        /** @param {int} */
+        /** @type {int} */
         this.notePosition = notePosition;
-        /** @param {boolean} */
+        /** @type {boolean} */
         this.isExpanded = !!isExpanded;
-        /** @param {string} */
+        /** @type {string} */
         this.utcDateModified = utcDateModified;
 
         return this;
@@ -77,7 +77,7 @@ class Branch extends AbstractEntity {
         this.becca.childParentToBranch[`${this.noteId}-${this.parentNoteId}`] = this;
     }
 
-    /** @return {Note} */
+    /** @returns {Note} */
     get childNote() {
         if (!(this.noteId in this.becca.notes)) {
             // entities can come out of order in sync, create skeleton which will be filled later
@@ -91,7 +91,7 @@ class Branch extends AbstractEntity {
         return this.childNote;
     }
 
-    /** @return {Note} */
+    /** @returns {Note} */
     get parentNote() {
         if (!(this.parentNoteId in this.becca.notes)) {
             // entities can come out of order in sync, create skeleton which will be filled later
@@ -99,6 +99,10 @@ class Branch extends AbstractEntity {
         }
 
         return this.becca.notes[this.parentNoteId];
+    }
+
+    get isDeleted() {
+        return !(this.branchId in this.becca.branches);
     }
 
     beforeSaving() {

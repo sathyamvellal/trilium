@@ -334,7 +334,7 @@ export default class AttributeDetailWidget extends NoteContextAwareWidget {
         this.$relatedNotesList = this.$relatedNotesContainer.find('.related-notes-list');
         this.$relatedNotesMoreNotes = this.$relatedNotesContainer.find('.related-notes-more-notes');
 
-        $(window).on('mouseup', e => {
+        $(window).on('mousedown', e => {
             if (!$(e.target).closest(this.$widget[0]).length
                 && !$(e.target).closest(".algolia-autocomplete").length
                 && !$(e.target).closest("#context-menu-container").length) {
@@ -626,7 +626,9 @@ export default class AttributeDetailWidget extends NoteContextAwareWidget {
                 props.push('precision=' + this.$inputNumberPrecision.val());
             }
         } else if (this.attrType === 'relation-definition' && this.$inputInverseRelation.val().trim().length > 0) {
-            props.push("inverse=" + this.$inputInverseRelation.val());
+            const inverseRelationName = this.$inputInverseRelation.val();
+
+            props.push("inverse=" + utils.filterAttributeName(inverseRelationName));
         }
 
         this.$rowNumberPrecision.toggle(

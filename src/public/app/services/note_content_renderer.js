@@ -169,7 +169,7 @@ function trim(text, doTrim) {
         return text;
     }
     else {
-        return text.substr(0, Math.min(text.length, 1000));
+        return text.substr(0, Math.min(text.length, 2000));
     }
 }
 

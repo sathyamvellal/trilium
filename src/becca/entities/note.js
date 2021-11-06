@@ -45,33 +45,33 @@ class Note extends AbstractEntity {
     update([noteId, title, type, mime, isProtected, dateCreated, dateModified, utcDateCreated, utcDateModified]) {
         // ------ Database persisted attributes ------
 
-        /** @param {string} */
+        /** @type {string} */
         this.noteId = noteId;
-        /** @param {string} */
+        /** @type {string} */
         this.title = title;
-        /** @param {boolean} */
+        /** @type {boolean} */
         this.isProtected = !!isProtected;
-        /** @param {string} */
+        /** @type {string} */
         this.type = type;
-        /** @param {string} */
+        /** @type {string} */
         this.mime = mime;
-        /** @param {string} */
+        /** @type {string} */
         this.dateCreated = dateCreated || dateUtils.localNowDateTime();
-        /** @param {string} */
+        /** @type {string} */
         this.dateModified = dateModified;
-        /** @param {string} */
+        /** @type {string} */
         this.utcDateCreated = utcDateCreated || dateUtils.utcNowDateTime();
-        /** @param {string} */
+        /** @type {string} */
         this.utcDateModified = utcDateModified;
 
         // ------ Derived attributes ------
 
-        /** @param {boolean} */
-        this.isDecrypted = !this.isProtected;
+        /** @type {boolean} */
+        this.isDecrypted = !this.noteId || !this.isProtected;
 
         this.decrypt();
 
-        /** @param {string|null} */
+        /** @type {string|null} */
         this.flatTextCache = null;
 
         return this;
@@ -116,26 +116,32 @@ class Note extends AbstractEntity {
             || protectedSessionService.isProtectedSessionAvailable()
     }
 
+    /** @returns {Branch[]} */
     getParentBranches() {
         return this.parentBranches;
     }
 
+    /** @returns {Branch[]} */
     getBranches() {
         return this.parentBranches;
     }
 
+    /** @returns {Note[]} */
     getParentNotes() {
         return this.parents;
     }
 
+    /** @returns {Note[]} */
     getChildNotes() {
         return this.children;
     }
 
+    /** @returns {boolean} */
     hasChildren() {
         return this.children && this.children.length > 0;
     }
 
+    /** @returns {Branch[]} */
     getChildBranches() {
         return this.children.map(childNote => this.becca.getBranchFromChildAndParent(childNote.noteId, this.noteId));
     }
@@ -370,7 +376,7 @@ class Note extends AbstractEntity {
         return this.__attributeCache;
     }
 
-    /** @return {Attribute[]} */
+    /** @returns {Attribute[]} */
     __getInheritableAttributes(path) {
         if (path.includes(this.noteId)) {
             return [];
@@ -611,7 +617,7 @@ class Note extends AbstractEntity {
 
     // will sort the parents so that non-search & non-archived are first and archived at the end
     // this is done so that non-search & non-archived paths are always explored as first when looking for note path
-    resortParents() {
+    sortParents() {
         this.parentBranches.sort((a, b) =>
             a.branchId.startsWith('virt-')
             || a.parentNote.hasInheritableOwnedArchivedLabel() ? 1 : -1);
@@ -721,28 +727,38 @@ class Note extends AbstractEntity {
         return !!this.targetRelations.find(rel => rel.name === 'template');
     }
 
-    /** @return {Note[]} */
+    /** @returns {Note[]} */
     getSubtreeNotesIncludingTemplated() {
-        const arr = [[this]];
+        const set = new Set();
 
-        for (const childNote of this.children) {
-            arr.push(childNote.getSubtreeNotesIncludingTemplated());
-        }
+        function inner(note) {
+            if (set.has(note)) {
+                return;
+            }
 
-        for (const targetRelation of this.targetRelations) {
-            if (targetRelation.name === 'template') {
-                const note = targetRelation.note;
+            set.add(note);
 
-                if (note) {
-                    arr.push(note.getSubtreeNotesIncludingTemplated());
+            for (const childNote of note.children) {
+                inner(childNote);
+            }
+
+            for (const targetRelation of note.targetRelations) {
+                if (targetRelation.name === 'template') {
+                    const targetNote = targetRelation.note;
+
+                    if (targetNote) {
+                        inner(targetNote);
+                    }
                 }
             }
         }
 
-        return arr.flat();
+        inner(this);
+
+        return Array.from(set);
     }
 
-    /** @return {Note[]} */
+    /** @returns {Note[]} */
     getSubtreeNotes(includeArchived = true) {
         const noteSet = new Set();
 
@@ -763,7 +779,7 @@ class Note extends AbstractEntity {
         return Array.from(noteSet);
     }
 
-    /** @return {String[]} */
+    /** @returns {String[]} */
     getSubtreeNoteIds(includeArchived = true) {
         return this.getSubtreeNotes(includeArchived).map(note => note.noteId);
     }
@@ -820,6 +836,7 @@ class Note extends AbstractEntity {
         return this.getAttributes().length;
     }
 
+    /** @returns {Note[]} */
     getAncestors() {
         if (!this.ancestorCache) {
             const noteIds = new Set();
@@ -843,11 +860,22 @@ class Note extends AbstractEntity {
         return this.ancestorCache;
     }
 
+    /** @returns {boolean} */
+    hasAncestor(ancestorNoteId) {
+        for (const ancestorNote of this.getAncestors()) {
+            if (ancestorNote.noteId === ancestorNoteId) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     getTargetRelations() {
         return this.targetRelations;
     }
 
-    /** @return {Note[]} - returns only notes which are templated, does not include their subtrees
+    /** @returns {Note[]} - returns only notes which are templated, does not include their subtrees
      *                     in effect returns notes which are influenced by note's non-inheritable attributes */
     getTemplatedNotes() {
         const arr = [this];
@@ -1082,6 +1110,10 @@ class Note extends AbstractEntity {
                 log.error(`Could not decrypt note ${this.noteId}: ${e.message} ${e.stack}`);
             }
         }
+    }
+
+    get isDeleted() {
+        return !(this.noteId in this.becca.notes);
     }
 
     beforeSaving() {

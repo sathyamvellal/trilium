@@ -1,5 +1,6 @@
 import NoteContextAwareWidget from "../note_context_aware_widget.js";
 import keyboardActionsService from "../../services/keyboard_actions.js";
+import attributeService from "../../services/attributes.js";
 
 const TPL = `
 <div class="ribbon-container">
@@ -166,7 +167,7 @@ export default class RibbonContainer extends NoteContextAwareWidget {
         });
     }
 
-    toggleRibbonTab($ribbonTitle) {
+    toggleRibbonTab($ribbonTitle, refreshActiveTab = true) {
         const activate = !$ribbonTitle.hasClass("active");
 
         this.$tabContainer.find('.ribbon-tab-title').removeClass("active");
@@ -182,7 +183,7 @@ export default class RibbonContainer extends NoteContextAwareWidget {
 
             const activeChild = this.getActiveRibbonWidget();
 
-            if (activeChild) {
+            if (activeChild && refreshActiveTab) {
                 activeChild.handleEvent('noteSwitched', {noteContext: this.noteContext, notePath: this.notePath});
             }
         } else {
@@ -248,7 +249,7 @@ export default class RibbonContainer extends NoteContextAwareWidget {
         }
 
         if ($ribbonTabToActivate) {
-            $ribbonTabToActivate.trigger('click');
+            this.toggleRibbonTab($ribbonTabToActivate, false);
         }
         else {
             this.$bodyContainer.find('.ribbon-body').removeClass("active");
@@ -259,10 +260,6 @@ export default class RibbonContainer extends NoteContextAwareWidget {
         const $ribbonComponent = this.$widget.find(`.ribbon-tab-title[data-ribbon-component-name='${name}']`);
 
         return $ribbonComponent.hasClass("active");
-    }
-
-    refreshRibbonContainerCommand() {
-        this.refreshWithNote(this.note, true);
     }
 
     ensureOwnedAttributesAreOpen(ntxId) {
@@ -331,6 +328,9 @@ export default class RibbonContainer extends NoteContextAwareWidget {
             this.lastNoteType = this.note.type;
 
             this.refresh();
+        }
+        else if (loadResults.getAttributes(this.componentId).find(attr => attributeService.isAffecting(attr, this.note))) {
+            this.refreshWithNote(this.note, true);
         }
     }
 

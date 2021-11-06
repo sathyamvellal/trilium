@@ -138,7 +138,8 @@ eventService.subscribe(eventService.ENTITY_CHANGED, ({ entityName, entity }) => 
                 isInheritable: entity.isInheritable
             }).save();
 
-            targetNote.invalidateAttributeCache();
+            // becca will not be updated before we'll check from the other side which would create infinite relation creation (#2269)
+            targetNote.invalidateThisCache();
         }
     });
 });
@@ -150,9 +151,6 @@ eventService.subscribe(eventService.ENTITY_DELETED, ({ entityName, entity }) => 
 
         for (const relation of relations) {
             if (relation.value === note.noteId) {
-                note.invalidateAttributeCache();
-                targetNote.invalidateAttributeCache();
-
                 relation.markAsDeleted();
             }
         }

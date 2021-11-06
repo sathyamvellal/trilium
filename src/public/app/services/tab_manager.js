@@ -139,7 +139,7 @@ export default class TabManager extends Component {
         this.triggerEvent('activeNoteChanged'); // trigger this even in on popstate event
     }
 
-    /** @return {NoteContext[]} */
+    /** @returns {NoteContext[]} */
     getNoteContexts() {
         return this.noteContexts;
     }
@@ -175,20 +175,20 @@ export default class TabManager extends Component {
         return activeContext ? activeContext.notePath : null;
     }
 
-    /** @return {NoteShort} */
+    /** @returns {NoteShort} */
     getActiveContextNote() {
         const activeContext = this.getActiveContext();
         return activeContext ? activeContext.note : null;
     }
 
-    /** @return {string|null} */
+    /** @returns {string|null} */
     getActiveContextNoteId() {
         const activeNote = this.getActiveContextNote();
 
         return activeNote ? activeNote.noteId : null;
     }
 
-    /** @return {string|null} */
+    /** @returns {string|null} */
     getActiveContextNoteType() {
         const activeNote = this.getActiveContextNote();
 
@@ -299,6 +299,17 @@ export default class TabManager extends Component {
     async removeNoteContext(ntxId) {
         const noteContextToRemove = this.getNoteContextById(ntxId);
 
+        if (noteContextToRemove.isMainContext()) {
+            // forbid removing last main note context
+            // this was previously allowed (was replaced with empty tab) but this proved to be prone to race conditions
+            const mainNoteContexts = this.getNoteContexts().filter(nc => nc.isMainContext());
+
+            if (mainNoteContexts.length === 1) {
+                mainNoteContexts[0].setEmpty();
+                return;
+            }
+        }
+
         // close dangling autocompletes after closing the tab
         $(".aa-input").autocomplete("close");
 
@@ -353,7 +364,7 @@ export default class TabManager extends Component {
         const order = {};
         let i = 0;
 
-        for (const ntxId in ntxIdsInOrder) {
+        for (const ntxId of ntxIdsInOrder) {
             order[ntxId] = i++;
         }
 
