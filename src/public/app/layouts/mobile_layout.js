@@ -2,11 +2,16 @@ import FlexContainer from "../widgets/containers/flex_container.js";
 import NoteTitleWidget from "../widgets/note_title.js";
 import NoteDetailWidget from "../widgets/note_detail.js";
 import NoteTreeWidget from "../widgets/note_tree.js";
-import MobileGlobalButtonsWidget from "../widgets/mobile_widgets/mobile_global_buttons.js";
 import CloseDetailButtonWidget from "../widgets/mobile_widgets/close_detail_button.js";
 import MobileDetailMenuWidget from "../widgets/mobile_widgets/mobile_detail_menu.js";
 import ScreenContainer from "../widgets/mobile_widgets/screen_container.js";
 import ScrollingContainer from "../widgets/containers/scrolling_container.js";
+import CalendarWidget from "../widgets/buttons/calendar.js";
+import CreateNoteIntoInboxButton from "../widgets/mobile_widgets/global_buttons/create_note_into_inbox.js";
+import CollapseTreeButton from "../widgets/mobile_widgets/global_buttons/collapse_tree.js";
+import ScrollToActiveNoteButton from "../widgets/mobile_widgets/global_buttons/scroll_to_active_note.js";
+import PluginButtonsButton from "../widgets/mobile_widgets/global_buttons/plugin_buttons.js";
+import GlobalActionsButton from "../widgets/mobile_widgets/global_buttons/global_actions.js";
 
 const MOBILE_CSS = `
 <style>
@@ -94,7 +99,21 @@ export default class MobileLayout {
                 .css("max-height", "100%")
                 .css('padding-left', 0)
                 .css('contain', 'content')
-                .child(new MobileGlobalButtonsWidget())
+                .child(new FlexContainer('row')
+                    .id('global-buttons')
+                    .css('flex-shrink', '0')
+                    .css('justify-content', 'space-around')
+                    .css('padding', '0px 0 3px 0')
+                    .css('font-size', 'larger')
+                    .css('position', 'absolute')
+                    .css('top', '8px')
+                    .css('width', '90%')
+                    .child(new CalendarWidget())
+                    .child(new CreateNoteIntoInboxButton())
+                    .child(new CollapseTreeButton())
+                    .child(new ScrollToActiveNoteButton())
+                    .child(new PluginButtonsButton())
+                    .child(new GlobalActionsButton()))
                 .child(new NoteTreeWidget("main")
                     .cssBlock(FANCYTREE_CSS)))
             .child(new ScreenContainer("detail", "column")
