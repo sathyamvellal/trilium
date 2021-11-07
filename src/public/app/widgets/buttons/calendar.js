@@ -29,8 +29,10 @@ const DROPDOWN_TPL = `
 </div>`;
 
 export default class CalendarWidget extends RightDropdownButtonWidget {
-    constructor() {
-        super("bx-calendar", "Calendar", DROPDOWN_TPL);
+    constructor(iconClass, title, customNotesRootLabel) {
+        console.log(iconClass, title, customNotesRootLabel);
+        super(iconClass, title, DROPDOWN_TPL);
+        this.customNotesRootLabel = customNotesRootLabel;
     }
 
     doRender() {
@@ -56,7 +58,7 @@ export default class CalendarWidget extends RightDropdownButtonWidget {
         this.$dropdownContent.on('click', '.calendar-date', async ev => {
             const date = $(ev.target).closest('.calendar-date').attr('data-calendar-date');
 
-            const note = await customNotesService.getCustomNote("calendarRoot", date);
+            const note = await customNotesService.getCustomNote(this.customNotesRootLabel, date);
 
             if (note) {
                 appContext.tabManager.getActiveContext().setNote(note.noteId);
