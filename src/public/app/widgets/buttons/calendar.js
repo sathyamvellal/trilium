@@ -29,10 +29,11 @@ const DROPDOWN_TPL = `
 </div>`;
 
 export default class CalendarWidget extends RightDropdownButtonWidget {
-    constructor(iconClass, title, customNotesRootLabel) {
+    constructor(iconClass, title, customNotesRootLabel, customNotesType) {
         console.log(iconClass, title, customNotesRootLabel);
         super(iconClass, title, DROPDOWN_TPL);
         this.customNotesRootLabel = customNotesRootLabel;
+        this.customNotesType = customNotesType;
     }
 
     doRender() {
@@ -58,7 +59,8 @@ export default class CalendarWidget extends RightDropdownButtonWidget {
         this.$dropdownContent.on('click', '.calendar-date', async ev => {
             const date = $(ev.target).closest('.calendar-date').attr('data-calendar-date');
 
-            const note = await customNotesService.getCustomNote(this.customNotesRootLabel, date);
+            const getterKey = "get" + this.customNotesType[0].toUpperCase() + this.customNotesType.slice(1) + "Note";
+            const note = await customNotesService[getterKey](this.customNotesRootLabel, date);
 
             if (note) {
                 appContext.tabManager.getActiveContext().setNote(note.noteId);

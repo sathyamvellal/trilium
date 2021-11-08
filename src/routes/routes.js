@@ -272,7 +272,9 @@ function register(app) {
     apiRoute(POST, '/api/special-notes/search-note', specialNotesRoute.createSearchNote);
     apiRoute(POST, '/api/special-notes/save-search-note', specialNotesRoute.saveSearchNote);
 
-    apiRoute(GET, '/api/custom-notes/:customRoot/:date', customNotesRoute.getDateNote);
+    apiRoute(GET, '/api/custom-notes/:customRoot/date/:date', customNotesRoute.getDateNote);
+    apiRoute(GET, '/api/custom-notes/:customRoot/week/:date', customNotesRoute.getWeekNote);
+    apiRoute(GET, '/api/custom-notes/:customRoot/month/:date', customNotesRoute.getMonthNote);
 
     route(GET, '/api/images/:noteId/:filename', [auth.checkApiAuthOrElectron], imageRoute.returnImage);
     route(POST, '/api/images', [auth.checkApiAuthOrElectron, uploadMiddleware, csrfMiddleware], imageRoute.uploadImage, apiResultHandler);
