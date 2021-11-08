@@ -1,13 +1,13 @@
 "use strict";
 
-const customDateNoteService = require('../../services/custom_date_notes');
+const customDateNoteService = require('../../services/custom_date_notes.js');
 
 function getDateNote(req) {
-    return customDateNoteService.getDateNote(req.params.date, req.params.customRoot);
+    return customDateNoteService.getDateNote(req.params.date, req.params.customRoot, req.query.startOfTheWeek);
 }
 
 function getWeekNote(req) {
-    return customDateNoteService.getWeekNote(req.params.date, req.params.customRoot);
+    return customDateNoteService.getWeekNote(req.params.date, req.params.customRoot, req.query.startOfTheWeek);
 }
 
 function getMonthNote(req) {

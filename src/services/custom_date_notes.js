@@ -173,8 +173,17 @@ function getStartOfTheWeek(date, startOfTheWeek) {
 
     if (startOfTheWeek === 'monday') {
         diff = date.getDate() - day + (day === 0 ? -6 : 1); // adjust when day is sunday
-    }
-    else if (startOfTheWeek === 'sunday') {
+    } else if (startOfTheWeek === 'tuesday') {
+        diff = date.getDate() - day + (day === 0 ? -5 : 2); // adjust when day is sunday
+    } else if (startOfTheWeek === 'wednesday') {
+        diff = date.getDate() - day + (day === 0 ? -4 : 3); // adjust when day is sunday
+    } else if (startOfTheWeek === 'thursday') {
+        diff = date.getDate() - day + (day === 0 ? -3 : 4); // adjust when day is sunday
+    } else if (startOfTheWeek === 'friday') {
+        diff = date.getDate() - day + (day === 0 ? -2 : 5); // adjust when day is sunday
+    } else if (startOfTheWeek === 'saturday') {
+        diff = date.getDate() - day + (day === 0 ? -1 : 6); // adjust when day is sunday
+    } else if (startOfTheWeek === 'sunday') {
         diff = date.getDate() - day;
     }
     else {
@@ -194,8 +203,8 @@ function getWeekNoteTitle(rootNote, dayNumber, dateObj) {
 }
 
 /** @return {Note} */
-function getWeekNote(dateStr, rootNoteLabel, rootNote) {
-    const dateObj = getStartOfTheWeek(dateUtils.parseLocalDate(dateStr), 'monday');
+function getWeekNote(dateStr, rootNoteLabel, rootNote, startOfTheWeek='monday') {
+    const dateObj = getStartOfTheWeek(dateUtils.parseLocalDate(dateStr), startOfTheWeek);
     dateStr = dateUtils.utcDateStr(dateObj).substr(0, 10);
 
     if (!rootNote) {
