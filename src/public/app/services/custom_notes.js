@@ -4,7 +4,7 @@ import ws from "./ws.js";
 
 /** @return {NoteShort} */
 async function getDateNote(rootNoteLabel, date, startOfTheWeek='monday') {
-    const note = await server.get('custom-notes/' + rootNoteLabel + '/date/' + date + '?startOfTheWeek=' + startOfTheWeek, "custom-note");
+    const note = await server.get('custom-notes/' + rootNoteLabel + '/date/' + date + '?' + new URLSearchParams({startOfTheWeek: startOfTheWeek}), "custom-note");
 
     await ws.waitForMaxKnownEntityChangeId();
 
@@ -13,7 +13,7 @@ async function getDateNote(rootNoteLabel, date, startOfTheWeek='monday') {
 
 /** @return {NoteShort} */
 async function getWeekNote(rootNoteLabel, date, startOfTheWeek='monday') {
-    const note = await server.get('custom-notes/' + rootNoteLabel + '/week/' + date + '?startOfTheWeek=' + startOfTheWeek, "custom-note");
+    const note = await server.get('custom-notes/' + rootNoteLabel + '/week/' + date + '?' + new URLSearchParams({startOfTheWeek: startOfTheWeek}), "custom-note");
 
     await ws.waitForMaxKnownEntityChangeId();
 

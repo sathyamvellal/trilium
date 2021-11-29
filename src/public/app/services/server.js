@@ -136,7 +136,11 @@ function ajax(url, method, data, headers) {
 
         if (data) {
             try {
-                options.data = JSON.stringify(data);
+                if (method == 'GET') {
+                    options.data = '' + new URLSearchParams(data);
+                } else {
+                    options.data = JSON.stringify(data);
+                }
             } catch (e) {
                 console.log("Can't stringify data: ", data, " because of error: ", e)
             }

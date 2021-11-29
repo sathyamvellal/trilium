@@ -3,11 +3,11 @@
 const customDateNoteService = require('../../services/custom_date_notes.js');
 
 function getDateNote(req) {
-    return customDateNoteService.getDateNote(req.params.date, req.params.customRoot, req.query.startOfTheWeek);
+    return customDateNoteService.getDateNote(req.params.date, req.params.customRoot, null, req.query.startOfTheWeek);
 }
 
 function getWeekNote(req) {
-    return customDateNoteService.getWeekNote(req.params.date, req.params.customRoot, req.query.startOfTheWeek);
+    return customDateNoteService.getWeekNote(req.params.date, req.params.customRoot, null, req.query.startOfTheWeek);
 }
 
 function getMonthNote(req) {

@@ -1,4 +1,6 @@
-.calendar-dropdown-widget *, .calendar-dropdown-widget *:before, .calendar-dropdown-widget *:after {
+.calendar-dropdown-widget *,
+.calendar-dropdown-widget *:before,
+.calendar-dropdown-widget *:after {
   box-sizing: border-box;
 }
 
@@ -83,6 +85,7 @@
 
 .calendar-dropdown-widget .calendar-date-today {
   font-weight: bold;
+  background-color: #9994;
 }
 
 .calendar-dropdown-widget .calendar-date-exists {

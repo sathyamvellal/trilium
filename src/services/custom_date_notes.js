@@ -204,8 +204,10 @@ function getWeekNoteTitle(rootNote, dayNumber, dateObj) {
 
 /** @return {Note} */
 function getWeekNote(dateStr, rootNoteLabel, rootNote, startOfTheWeek='monday') {
+    console.log('requested', rootNoteLabel, dateStr, startOfTheWeek);
     const dateObj = getStartOfTheWeek(dateUtils.parseLocalDate(dateStr), startOfTheWeek);
     dateStr = dateUtils.utcDateStr(dateObj).substr(0, 10);
+    console.log('computed', rootNoteLabel, dateStr, startOfTheWeek);
 
     if (!rootNote) {
         rootNote = getRootNote(rootNoteLabel);
@@ -257,7 +259,7 @@ function getDateNoteTitle(rootNote, dayNumber, dateObj) {
 }
 
 /** @return {Note} */
-function getDateNote(dateStr, rootNoteLabel, rootNote) {
+function getDateNote(dateStr, rootNoteLabel, rootNote, startOfTheWeek) {
     console.log("rootNoteLabel:", rootNoteLabel);
     console.log("rootNote:", rootNote);
     let dateNote = attributeService.getNoteWithLabel(getDateLabel(rootNoteLabel), dateStr);
@@ -267,7 +269,7 @@ function getDateNote(dateStr, rootNoteLabel, rootNote) {
     }
 
     rootNote = rootNote || getRootNote(rootNoteLabel);
-    const weekNote = getWeekNote(dateStr, rootNoteLabel, rootNote);
+    const weekNote = getWeekNote(dateStr, rootNoteLabel, rootNote, startOfTheWeek);
     const dayNumber = dateStr.substr(8, 2);
 
     dateNote = getNoteStartingWith(weekNote.noteId, dayNumber);
