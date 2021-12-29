@@ -91,6 +91,7 @@ const defaultOptions = [
     { name: 'weeklyBackupEnabled', value: 'true', isSynced: false },
     { name: 'monthlyBackupEnabled', value: 'true', isSynced: false },
     { name: 'maxContentWidth', value: '1200', isSynced: false },
+    { name: 'compressImages', value: 'true', isSynced: true }
 ];
 
 function initStartupOptions() {

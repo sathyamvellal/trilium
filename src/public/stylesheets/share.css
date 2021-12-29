@@ -1,0 +1,110 @@
+body {
+    font-family: 'Lucida Grande', 'Lucida Sans Unicode', arial, sans-serif;
+}
+
+#layout {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: row-reverse;
+}
+
+#menu {
+    padding: 25px;
+    flex-basis: 0;
+    flex-grow: 1;
+    overflow: auto;
+}
+
+#menu p {
+    margin: 0;
+}
+
+#menu > p {
+    font-weight: bold;
+    font-size: 110%;
+}
+
+#menu ul {
+    padding-left: 20px;
+}
+
+#main {
+    flex-basis: 0;
+    flex-grow: 3;
+}
+
+#title {
+    margin: 0;
+    padding: 20px 20px 0 20px;
+}
+
+#content {
+    padding: 20px;
+}
+
+img {
+    max-width: 100%;
+}
+
+pre {
+    white-space: pre-wrap;
+    word-wrap: anywhere;
+}
+
+iframe.pdf-view {
+    width: 100%;
+    height: 800px;
+}
+
+#menuButton {
+    display: none;
+    position: fixed;
+    top: 8px;
+    left: 5px;
+    width: 1.4em;
+    border-radius: 5px;
+    border: 1px solid #aaa;
+    font-size: 2rem;
+    z-index: 10;
+    height: auto;
+    color: black;
+    cursor: pointer;
+}
+
+#menuButton::after {
+    position: relative;
+    top: -2px;
+    left: 1px;
+}
+
+@media (max-width: 48em) {
+    #layout.navMenu #menu {
+        display: block;
+        margin-top: 40px;
+    }
+
+    #menuButton {
+        display: block;
+    }
+
+    #layout.navMenu #main {
+        display: none;
+    }
+
+    #title {
+        padding-left: 60px;
+    }
+
+    #layout.navMenu #menuButton::after {
+        content: "«";
+    }
+
+    #menuButton::after {
+        content: "»";
+    }
+
+    #menu {
+        display: none;
+    }
+}

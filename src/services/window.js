@@ -76,6 +76,8 @@ async function createMainWindow() {
 
     const {webContents} = mainWindow;
 
+    require("@electron/remote/main").enable(webContents);
+
     webContents.on('new-window', (e, url) => {
         if (url !== webContents.getURL()) {
             e.preventDefault();
@@ -165,9 +167,15 @@ async function registerGlobalShortcuts() {
     }
 }
 
+function getMainWindow() {
+    return mainWindow;
+}
+
+
 module.exports = {
     createMainWindow,
     createSetupWindow,
     closeSetupWindow,
-    registerGlobalShortcuts
+    registerGlobalShortcuts,
+    getMainWindow
 };
