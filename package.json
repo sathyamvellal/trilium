@@ -24,6 +24,7 @@
     "test-all": "npm run test && npm run test-es6"
   },
   "dependencies": {
+    "@electron/remote": "2.0.1",
     "archiver": "5.3.0",
     "async-mutex": "0.3.2",
     "axios": "0.24.0",
@@ -40,7 +41,6 @@
     "electron-dl": "3.3.0",
     "electron-find": "1.0.7",
     "electron-window-state": "5.0.3",
-    "@electron/remote": "2.0.1",
     "express": "4.17.2",
     "express-partial-content": "^1.0.2",
     "express-rate-limit": "5.5.1",
@@ -63,6 +63,7 @@
     "node-abi": "3.5.0",
     "normalize-strings": "^1.1.1",
     "open": "8.4.0",
+    "pm2": "^5.1.2",
     "portscanner": "2.2.0",
     "rand-token": "1.0.1",
     "request": "^2.88.2",
