@@ -33,9 +33,6 @@ kbd {
     padding-right: 0.5em;
     color: var(--main-text-color);
 }
-.quick-search {
-    margin: 55px 0px 0px 0px;
-}
 .quick-search .dropdown-menu {
     max-width: 350px;
 }
