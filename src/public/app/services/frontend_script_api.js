@@ -432,7 +432,7 @@ function FrontendScriptApi(startNote, currentNote, originEntity = null, $contain
      * @param {string} date - e.g. "2019-04-29"
      * @return {Promise<NoteShort>}
      */
-     this.getCustomNote = customNotesService.getCustomNote;
+     this.getCustomNote = customNotesService.getDateNote;
 
     /**
      * Hoist note in the current tab. See https://github.com/zadam/trilium/wiki/Note-hoisting
