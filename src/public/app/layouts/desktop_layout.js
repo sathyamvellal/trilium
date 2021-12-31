@@ -81,6 +81,7 @@ export default class DesktopLayout {
                 .child(new CalendarWidget("bx-notepad", "Logs", "logs", "week"))
                 .child(new CalendarWidget("bx-history", "Status", "streamingCoreStatus", "week", "wednesday"))
                 .child(new CalendarWidget("bx-bug", "Bugs", "bugsUpdates", "week", "wednesday"))
+                .child(new CalendarWidget("bx-git-pull-request", "Reviews", "reviews", "week"))
                 .child(new SpacerWidget(40, 0))
                 .child(new FlexContainer("column")
                     .id("plugin-buttons")
