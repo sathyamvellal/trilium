@@ -1,7 +1,7 @@
 "use strict";
 
-const dateUtils = require('../../services/date_utils.js');
-const AbstractEntity = require("./abstract_entity.js");
+const dateUtils = require('../../services/date_utils');
+const AbstractEntity = require("./abstract_entity");
 
 /**
  * Option represents name-value pair, either directly configurable by the user or some system property.
@@ -37,9 +37,7 @@ class Option extends AbstractEntity {
             name: this.name,
             value: this.value,
             isSynced: this.isSynced,
-            utcDateModified: this.utcDateModified,
-            // utcDateCreated is scheduled for removal so the value does not matter
-            utcDateCreated: dateUtils.utcNowDateTime()
+            utcDateModified: this.utcDateModified
         }
     }
 }

@@ -28,8 +28,8 @@ function getHoistedNoteId() {
     return namespace.get('hoistedNoteId') || 'root';
 }
 
-function getSourceId() {
-    return namespace.get('sourceId');
+function getComponentId() {
+    return namespace.get('componentId');
 }
 
 function getLocalNowDateTime() {
@@ -44,14 +44,10 @@ function isEntityEventsDisabled() {
     return !!namespace.get('disableEntityEvents');
 }
 
-function clearEntityChangeIds() {
-    namespace.set('entityChangeIds', []);
-}
-
 function getAndClearEntityChangeIds() {
     const entityChangeIds = namespace.get('entityChangeIds') || [];
 
-    clearEntityChangeIds();
+    namespace.set('entityChangeIds', []);
 
     return entityChangeIds;
 }
@@ -84,12 +80,11 @@ module.exports = {
     set,
     namespace,
     getHoistedNoteId,
-    getSourceId,
+    getComponentId,
     getLocalNowDateTime,
     disableEntityEvents,
     isEntityEventsDisabled,
     reset,
-    clearEntityChangeIds,
     getAndClearEntityChangeIds,
     addEntityChange,
     ignoreEntityChangeIds

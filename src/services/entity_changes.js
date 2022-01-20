@@ -1,20 +1,30 @@
 const sql = require('./sql');
-const sourceIdService = require('./source_id');
 const dateUtils = require('./date_utils');
 const log = require('./log');
 const cls = require('./cls');
+const utils = require('./utils');
+const instanceId = require('./member_id');
 const becca = require("../becca/becca");
 
 let maxEntityChangeId = 0;
 
-function addEntityChange(origEntityChange, keepOriginalId = false) {
+function addEntityChangeWithinstanceId(origEntityChange, instanceId) {
+    const ec = {...origEntityChange, instanceId};
+
+    return addEntityChange(ec);
+}
+
+function addEntityChange(origEntityChange) {
     const ec = {...origEntityChange};
 
-    if (!keepOriginalId) {
-        delete ec.id;
+    delete ec.id;
+
+    if (!ec.changeId) {
+        ec.changeId = utils.randomString(12);
     }
 
-    ec.sourceId = ec.sourceId || cls.getSourceId() || sourceIdService.getCurrentSourceId();
+    ec.componentId = ec.componentId || cls.getComponentId() || "NA"; // NA = not available
+    ec.instanceId = ec.instanceId || instanceId;
     ec.isSynced = ec.isSynced ? 1 : 0;
     ec.isErased = ec.isErased ? 1 : 0;
     ec.id = sql.replace("entity_changes", ec);
@@ -24,7 +34,7 @@ function addEntityChange(origEntityChange, keepOriginalId = false) {
     cls.addEntityChange(ec);
 }
 
-function addNoteReorderingEntityChange(parentNoteId, sourceId) {
+function addNoteReorderingEntityChange(parentNoteId, componentId) {
     addEntityChange({
         entityName: "note_reordering",
         entityId: parentNoteId,
@@ -32,7 +42,8 @@ function addNoteReorderingEntityChange(parentNoteId, sourceId) {
         isErased: false,
         utcDateChanged: dateUtils.utcNowDateTime(),
         isSynced: true,
-        sourceId
+        componentId,
+        instanceId
     });
 
     const eventService = require('./events');
@@ -126,7 +137,7 @@ function fillAllEntityChanges() {
         fillEntityChanges("note_revision_contents", "noteRevisionId");
         fillEntityChanges("recent_notes", "noteId");
         fillEntityChanges("attributes", "attributeId");
-        fillEntityChanges("api_tokens", "apiTokenId");
+        fillEntityChanges("etapi_tokens", "etapiTokenId");
         fillEntityChanges("options", "name", 'isSynced = 1');
     });
 }
@@ -135,6 +146,7 @@ module.exports = {
     addNoteReorderingEntityChange,
     moveEntityChangeToTop,
     addEntityChange,
+    addEntityChangeWithinstanceId,
     fillAllEntityChanges,
     addEntityChangesForSector,
     getMaxEntityChangeId: () => maxEntityChangeId

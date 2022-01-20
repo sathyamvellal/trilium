@@ -1,6 +1,5 @@
 "use strict";
 
-const sourceIdService = require('../services/source_id');
 const sql = require('../services/sql');
 const attributeService = require('../services/attributes');
 const config = require('../services/config');
@@ -9,6 +8,7 @@ const log = require('../services/log');
 const env = require('../services/env');
 const utils = require('../services/utils');
 const protectedSessionService = require("../services/protected_session");
+const packageJson = require('../../package.json');
 
 function index(req, res) {
     const options = optionService.getOptionsMap();
@@ -27,7 +27,6 @@ function index(req, res) {
         mainFontSize: parseInt(options.mainFontSize),
         treeFontSize: parseInt(options.treeFontSize),
         detailFontSize: parseInt(options.detailFontSize),
-        sourceId: sourceIdService.generateSourceId(),
         maxEntityChangeIdAtLoad: sql.getValue("SELECT COALESCE(MAX(id), 0) FROM entity_changes"),
         maxEntityChangeSyncIdAtLoad: sql.getValue("SELECT COALESCE(MAX(id), 0) FROM entity_changes WHERE isSynced = 1"),
         instanceName: config.General ? config.General.instanceName : null,
@@ -36,7 +35,8 @@ function index(req, res) {
         isMainWindow: !req.query.extra,
         extraHoistedNoteId: req.query.extraHoistedNoteId,
         isProtectedSessionAvailable: protectedSessionService.isProtectedSessionAvailable(),
-        maxContentWidth: parseInt(options.maxContentWidth)
+        maxContentWidth: parseInt(options.maxContentWidth),
+        triliumVersion: packageJson.version
     });
 }
 

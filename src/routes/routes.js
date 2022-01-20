@@ -31,15 +31,23 @@ const scriptRoute = require('./api/script');
 const senderRoute = require('./api/sender');
 const filesRoute = require('./api/files');
 const searchRoute = require('./api/search');
-const specialNotesRoute = require('./api/special_notes.js');
+const specialNotesRoute = require('./api/special_notes');
 const customNotesRoute = require('./api/custom_notes');
-const noteMapRoute = require('./api/note_map.js');
+const noteMapRoute = require('./api/note_map');
 const clipperRoute = require('./api/clipper');
 const similarNotesRoute = require('./api/similar_notes');
 const keysRoute = require('./api/keys');
 const backendLogRoute = require('./api/backend_log');
 const statsRoute = require('./api/stats');
 const fontsRoute = require('./api/fonts');
+const etapiTokensApiRoutes = require('./api/etapi_tokens');
+const shareRoutes = require('../share/routes');
+const etapiAuthRoutes = require('../etapi/auth');
+const etapiAttributeRoutes = require('../etapi/attributes');
+const etapiBranchRoutes = require('../etapi/branches');
+const etapiNoteRoutes = require('../etapi/notes');
+const etapiSpecialNoteRoutes = require('../etapi/special_notes');
+const etapiSpecRoute = require('../etapi/spec');
 
 const log = require('../services/log');
 const express = require('express');
@@ -51,7 +59,7 @@ const entityChangesService = require('../services/entity_changes');
 const csurf = require('csurf');
 const {createPartialContentHandler} = require("express-partial-content");
 const rateLimit = require("express-rate-limit");
-const AbstractEntity = require("../becca/entities/abstract_entity.js");
+const AbstractEntity = require("../becca/entities/abstract_entity");
 
 const csrfMiddleware = csurf({
     cookie: true,
@@ -139,7 +147,7 @@ function route(method, path, middleware, routeHandler, resultHandler, transactio
             cls.namespace.bindEmitter(res);
 
             const result = cls.init(() => {
-                cls.set('sourceId', req.headers['trilium-source-id']);
+                cls.set('componentId', req.headers['trilium-component-id']);
                 cls.set('localNowDateTime', req.headers['trilium-local-now-datetime']);
                 cls.set('hoistedNoteId', req.headers['trilium-hoisted-note-id'] || 'root');
 
@@ -177,12 +185,13 @@ function route(method, path, middleware, routeHandler, resultHandler, transactio
     });
 }
 
-const GET = 'get', POST = 'post', PUT = 'put', DELETE = 'delete';
+const GET = 'get', POST = 'post', PUT = 'put', PATCH = 'patch', DELETE = 'delete';
 const uploadMiddleware = multer.single('upload');
 
 function register(app) {
     route(GET, '/', [auth.checkAuth, csrfMiddleware], indexRoute.index);
-    route(GET, '/login', [auth.checkAppInitialized], loginRoute.loginPage);
+    route(GET, '/login', [auth.checkAppInitialized, auth.checkPasswordSet], loginRoute.loginPage);
+    route(GET, '/set-password', [auth.checkAppInitialized, auth.checkPasswordNotSet], loginRoute.setPasswordPage);
 
     const loginRateLimiter = rateLimit({
         windowMs: 15 * 60 * 1000, // 15 minutes
@@ -191,6 +200,7 @@ function register(app) {
 
     route(POST, '/login', [loginRateLimiter], loginRoute.login);
     route(POST, '/logout', [csrfMiddleware, auth.checkAuth], loginRoute.logout);
+    route(POST, '/set-password', [auth.checkAppInitialized, auth.checkPasswordNotSet], loginRoute.setPassword);
     route(GET, '/setup', [], setupRoute.setupPage);
 
     apiRoute(GET, '/api/tree', treeApiRoute.getTree);
@@ -213,13 +223,14 @@ function register(app) {
     apiRoute(POST, '/api/notes/:parentNoteId/children', notesApiRoute.createNote);
     apiRoute(PUT, '/api/notes/:noteId/sort-children', notesApiRoute.sortChildNotes);
     apiRoute(PUT, '/api/notes/:noteId/protect/:isProtected', notesApiRoute.protectNote);
-    apiRoute(PUT, /\/api\/notes\/(.*)\/type\/(.*)\/mime\/(.*)/, notesApiRoute.setNoteTypeMime);
+    apiRoute(PUT, '/api/notes/:noteId/type', notesApiRoute.setNoteTypeMime);
     apiRoute(GET, '/api/notes/:noteId/revisions', noteRevisionsApiRoute.getNoteRevisions);
     apiRoute(DELETE, '/api/notes/:noteId/revisions', noteRevisionsApiRoute.eraseAllNoteRevisions);
     apiRoute(GET, '/api/notes/:noteId/revisions/:noteRevisionId', noteRevisionsApiRoute.getNoteRevision);
     apiRoute(DELETE, '/api/notes/:noteId/revisions/:noteRevisionId', noteRevisionsApiRoute.eraseNoteRevision);
     route(GET, '/api/notes/:noteId/revisions/:noteRevisionId/download', [auth.checkApiAuthOrElectron], noteRevisionsApiRoute.downloadNoteRevision);
     apiRoute(PUT, '/api/notes/:noteId/restore-revision/:noteRevisionId', noteRevisionsApiRoute.restoreNoteRevision);
+    apiRoute(GET, '/api/notes/:noteId/backlink-count', notesApiRoute.getBacklinkCount);
     apiRoute(POST, '/api/notes/relation-map', notesApiRoute.getRelationMap);
     apiRoute(POST, '/api/notes/erase-deleted-notes-now', notesApiRoute.eraseDeletedNotesNow);
     apiRoute(PUT, '/api/notes/:noteId/change-title', notesApiRoute.changeTitle);
@@ -228,7 +239,8 @@ function register(app) {
 
     apiRoute(GET, '/api/edited-notes/:date', noteRevisionsApiRoute.getEditedNotesOnDate);
 
-    apiRoute(PUT, '/api/notes/:noteId/clone-to/:parentBranchId', cloningApiRoute.cloneNoteToParent);
+    apiRoute(PUT, '/api/notes/:noteId/clone-to-branch/:parentBranchId', cloningApiRoute.cloneNoteToBranch);
+    apiRoute(PUT, '/api/notes/:noteId/clone-to-note/:parentNoteId', cloningApiRoute.cloneNoteToNote);
     apiRoute(PUT, '/api/notes/:noteId/clone-after/:afterBranchId', cloningApiRoute.cloneNoteAfter);
 
     route(GET, '/api/notes/:branchId/export/:type/:format/:version/:taskId', [auth.checkApiAuthOrElectron], exportRoute.exportBranch);
@@ -260,13 +272,14 @@ function register(app) {
 
     apiRoute(POST, '/api/note-map/:noteId/tree', noteMapRoute.getTreeMap);
     apiRoute(POST, '/api/note-map/:noteId/link', noteMapRoute.getLinkMap);
+    apiRoute(GET, '/api/note-map/:noteId/backlinks', noteMapRoute.getBacklinks);
 
     apiRoute(GET, '/api/special-notes/inbox/:date', specialNotesRoute.getInboxNote);
-    apiRoute(GET, '/api/special-notes/date/:date', specialNotesRoute.getDateNote);
-    apiRoute(GET, '/api/special-notes/week/:date', specialNotesRoute.getWeekNote);
-    apiRoute(GET, '/api/special-notes/month/:month', specialNotesRoute.getMonthNote);
-    apiRoute(GET, '/api/special-notes/year/:year', specialNotesRoute.getYearNote);
-    apiRoute(GET, '/api/special-notes/notes-for-month/:month', specialNotesRoute.getDateNotesForMonth);
+    apiRoute(GET, '/api/special-notes/days/:date', specialNotesRoute.getDayNote);
+    apiRoute(GET, '/api/special-notes/weeks/:date', specialNotesRoute.getWeekNote);
+    apiRoute(GET, '/api/special-notes/months/:month', specialNotesRoute.getMonthNote);
+    apiRoute(GET, '/api/special-notes/years/:year', specialNotesRoute.getYearNote);
+    apiRoute(GET, '/api/special-notes/notes-for-month/:month', specialNotesRoute.getDayNotesForMonth);
     apiRoute(POST, '/api/special-notes/sql-console', specialNotesRoute.createSqlConsole);
     apiRoute(POST, '/api/special-notes/save-sql-console', specialNotesRoute.saveSqlConsole);
     apiRoute(POST, '/api/special-notes/search-note', specialNotesRoute.createSearchNote);
@@ -289,6 +302,7 @@ function register(app) {
     apiRoute(GET, '/api/options/user-themes', optionsApiRoute.getUserThemes);
 
     apiRoute(POST, '/api/password/change', passwordApiRoute.changePassword);
+    apiRoute(POST, '/api/password/reset', passwordApiRoute.resetPassword);
 
     apiRoute(POST, '/api/sync/test', syncApiRoute.testSync);
     apiRoute(POST, '/api/sync/now', syncApiRoute.syncNow);
@@ -299,6 +313,7 @@ function register(app) {
     route(GET, '/api/sync/changed', [auth.checkApiAuth], syncApiRoute.getChanged, apiResultHandler);
     route(PUT, '/api/sync/update', [auth.checkApiAuth], syncApiRoute.update, apiResultHandler);
     route(POST, '/api/sync/finished', [auth.checkApiAuth], syncApiRoute.syncFinished, apiResultHandler);
+    route(POST, '/api/sync/check-entity-changes', [auth.checkApiAuth], syncApiRoute.checkEntityChanges, apiResultHandler);
     route(POST, '/api/sync/queue-sector/:entityName/:sector', [auth.checkApiAuth], syncApiRoute.queueSector, apiResultHandler);
     route(GET, '/api/sync/stats', [], syncApiRoute.getStats, apiResultHandler);
 
@@ -333,8 +348,8 @@ function register(app) {
 
     // no CSRF since this is called from android app
     route(POST, '/api/sender/login', [], loginApiRoute.token, apiResultHandler);
-    route(POST, '/api/sender/image', [auth.checkToken, uploadMiddleware], senderRoute.uploadImage, apiResultHandler);
-    route(POST, '/api/sender/note', [auth.checkToken], senderRoute.saveNote, apiResultHandler);
+    route(POST, '/api/sender/image', [auth.checkEtapiToken, uploadMiddleware], senderRoute.uploadImage, apiResultHandler);
+    route(POST, '/api/sender/note', [auth.checkEtapiToken], senderRoute.saveNote, apiResultHandler);
 
     apiRoute(GET, '/api/quick-search/:searchString', searchRoute.quickSearch);
     apiRoute(GET, '/api/search-note/:noteId', searchRoute.searchFromNote);
@@ -350,7 +365,7 @@ function register(app) {
     route(POST, '/api/login/token', [], loginApiRoute.token, apiResultHandler);
 
     // in case of local electron, local calls are allowed unauthenticated, for server they need auth
-    const clipperMiddleware = utils.isElectron() ? [] : [auth.checkToken];
+    const clipperMiddleware = utils.isElectron() ? [] : [auth.checkEtapiToken];
 
     route(GET, '/api/clipper/handshake', clipperMiddleware, clipperRoute.handshake, apiResultHandler);
     route(POST, '/api/clipper/clippings', clipperMiddleware, clipperRoute.addClipping, apiResultHandler);
@@ -370,6 +385,20 @@ function register(app) {
     apiRoute(POST, '/api/delete-notes-preview', notesApiRoute.getDeleteNotesPreview);
 
     route(GET, '/api/fonts', [auth.checkApiAuthOrElectron], fontsRoute.getFontCss);
+
+    apiRoute(GET, '/api/etapi-tokens', etapiTokensApiRoutes.getTokens);
+    apiRoute(POST, '/api/etapi-tokens', etapiTokensApiRoutes.createToken);
+    apiRoute(PATCH, '/api/etapi-tokens/:etapiTokenId', etapiTokensApiRoutes.patchToken);
+    apiRoute(DELETE, '/api/etapi-tokens/:etapiTokenId', etapiTokensApiRoutes.deleteToken);
+
+    shareRoutes.register(router);
+    
+    etapiAuthRoutes.register(router);
+    etapiAttributeRoutes.register(router);
+    etapiBranchRoutes.register(router);
+    etapiNoteRoutes.register(router);
+    etapiSpecialNoteRoutes.register(router);
+    etapiSpecRoute.register(router);
 
     app.use('', router);
 }
