@@ -61,7 +61,7 @@ export default class CalendarWidget extends RightDropdownButtonWidget {
             const date = $(ev.target).closest('.calendar-date').attr('data-calendar-date');
 
             const getterKey = "get" + this.customNotesType[0].toUpperCase() + this.customNotesType.slice(1) + "Note";
-            const note = await customNotesService[getterKey](this.customNotesRootLabel, date, this.startOfTheWeek);
+            const note = await customNotesService[getterKey](this.customNotesRootLabel, date, {startOfTheWeek: this.startOfTheWeek});
 
             if (note) {
                 appContext.tabManager.getActiveContext().setNote(note.noteId);

@@ -139,7 +139,7 @@ function getMonthNote(dateStr, rootNoteLabel, rootNote, params) {
         return monthNote;
     }
 
-    const yearNote = getYearNote(dateStr, rootNoteLabel, rootNote);
+    const yearNote = getYearNote(dateStr, rootNoteLabel, rootNote, params);
 
     monthNote = getNoteStartingWith(yearNote.noteId, monthNumber);
 
@@ -219,7 +219,7 @@ function getWeekNote(dateStr, rootNoteLabel, rootNote, params) {
         return weekNote;
     }
 
-    const monthNote = getMonthNote(dateStr, rootNoteLabel, rootNote);
+    const monthNote = getMonthNote(dateStr, rootNoteLabel, rootNote, params);
     const dayNumber = dateStr.substr(8, 2);
 
     weekNote = getNoteEndingith(monthNote.noteId, dayNumber);
