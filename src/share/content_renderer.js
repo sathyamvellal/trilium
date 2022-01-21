@@ -1,43 +1,18 @@
 const {JSDOM} = require("jsdom");
-const NO_CONTENT = '<p>This note has no content.</p>';
 const shaca = require("./shaca/shaca");
-
-function getChildrenList(note) {
-    if (note.hasChildren()) {
-        const document = new JSDOM().window.document;
-
-        const ulEl = document.createElement("ul");
-
-        for (const childNote of note.getChildNotes()) {
-            const li = document.createElement("li");
-            const link = document.createElement("a");
-            link.appendChild(document.createTextNode(childNote.title));
-            link.setAttribute("href", childNote.noteId);
-
-            li.appendChild(link);
-            ulEl.appendChild(li);
-        }
-
-        return '<p>Child notes:</p>' + ulEl.outerHTML;
-    }
-    else {
-        return '';
-    }
-}
 
 function getContent(note) {
     let content = note.getContent();
+    let header = '';
+    let isEmpty = false;
 
     if (note.type === 'text') {
         const document = new JSDOM(content || "").window.document;
 
-        const isEmpty = document.body.textContent.trim().length === 0
+        isEmpty = document.body.textContent.trim().length === 0
             && document.querySelectorAll("img").length === 0;
 
-        if (isEmpty) {
-            content = NO_CONTENT + getChildrenList(note);
-        }
-        else {
+        if (!isEmpty) {
             for (const linkEl of document.querySelectorAll("a")) {
                 const href = linkEl.getAttribute("href");
 
@@ -49,6 +24,7 @@ function getContent(note) {
 
                     if (linkedNote) {
                         linkEl.setAttribute("href", linkedNote.shareId);
+                        linkEl.classList.add("type-" + linkedNote.type);
                     }
                     else {
                         linkEl.removeAttribute("href");
@@ -57,11 +33,24 @@ function getContent(note) {
             }
 
             content = document.body.innerHTML;
+
+            if (content.includes(`<span class="math-tex">`)) {
+                header += `
+<script src="../../libraries/katex/katex.min.js"></script>
+<link rel="stylesheet" href="../../libraries/katex/katex.min.css">
+<script src="../../libraries/katex/auto-render.min.js"></script>
+<script src="../../libraries/katex/mhchem.min.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    renderMathInElement(document.getElementById('content'));
+});
+</script>`;
+            }
         }
     }
-    else if (note.type === 'code' || note.type === 'mermaid') {
+    else if (note.type === 'code') {
         if (!content?.trim()) {
-            content = NO_CONTENT + getChildrenList(note);
+            isEmpty = true;
         }
         else {
             const document = new JSDOM().window.document;
@@ -71,6 +60,16 @@ function getContent(note) {
 
             content = preEl.outerHTML;
         }
+    }
+    else if (note.type === 'mermaid') {
+        content = `
+<div class="mermaid">${content}</div>
+<hr>
+<details>
+    <summary>Chart source</summary>
+    <pre>${content}</pre>
+</details>`
+        header += `<script src="../../libraries/mermaid.min.js"></script>`;
     }
     else if (note.type === 'image') {
         content = `<img src="api/images/${note.noteId}/${note.title}?${note.utcDateModified}">`;
@@ -84,15 +83,23 @@ function getContent(note) {
         }
     }
     else if (note.type === 'book') {
-        content = getChildrenList(note);
+        isEmpty = true;
     }
     else {
-        content = '<p>This note type cannot be displayed.</p>' + getChildrenList(note);
+        content = '<p>This note type cannot be displayed.</p>';
     }
 
-    return content;
+    return {
+        header,
+        content,
+        isEmpty
+    };
 }
 
 module.exports = {
     getContent
 };
+
+
+
+

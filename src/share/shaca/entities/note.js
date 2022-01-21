@@ -406,9 +406,26 @@ class Note extends AbstractEntity {
     }
 
     get shareId() {
+        if (this.hasOwnedLabel('shareRoot')) {
+            return "";
+        }
+
         const sharedAlias = this.getOwnedLabelValue("shareAlias");
 
         return sharedAlias || this.noteId;
+    }
+
+    getPojoWithAttributes() {
+        return {
+            noteId: this.noteId,
+            title: this.title,
+            type: this.type,
+            mime: this.mime,
+            utcDateModified: this.utcDateModified,
+            attributes: this.getAttributes().map(attr => attr.getPojo()),
+            parentNoteIds: this.parents.map(parentNote => parentNote.noteId),
+            childNoteIds: this.children.map(child => child.noteId)
+        };
     }
 }
 

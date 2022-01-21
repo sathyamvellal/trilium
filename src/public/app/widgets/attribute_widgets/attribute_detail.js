@@ -214,6 +214,7 @@ const ATTR_HELP = {
         "shareHiddenFromTree": "this note is hidden from left navigation tree, but still accessible with its URL",
         "shareAlias": "define an alias using which the note will be available under https://your_trilium_host/share/[your_alias]",
         "shareOmitDefaultCss": "default share page CSS will be omitted. Use when you make extensive styling changes.",
+        "shareRoot": "marks note which is served on /share root.",
     },
     "relation": {
         "runOnNoteCreation": "executes when note is created on backend",
@@ -226,6 +227,8 @@ const ATTR_HELP = {
         "renderNote": 'notes of type "render HTML note" will be rendered using a code note (HTML or script) and it is necessary to point using this relation to which note should be rendered',
         "widget": "target of this relation will be executed and rendered as a widget in the sidebar",
         "shareCss": "CSS note which will be injected into the share page. CSS note must be in the shared sub-tree as well. Consider using 'shareHiddenFromTree' and 'shareOmitDefaultCss' as well.",
+        "shareJs": "JavaScript note which will be injected into the share page. JS note must be in the shared sub-tree as well. Consider using 'shareHiddenFromTree'.",
+        "shareFavicon": "Favicon note to be set in the shared page. Typically you want to set it to share root and make it inheritable. Favicon note must be in the shared sub-tree as well. Consider using 'shareHiddenFromTree'.",
     }
 };
 

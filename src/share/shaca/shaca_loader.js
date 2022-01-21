@@ -1,7 +1,7 @@
 "use strict";
 
 const sql = require('../sql');
-const shaca = require('./shaca.js');
+const shaca = require('./shaca');
 const log = require('../../services/log');
 const Note = require('./entities/note');
 const Branch = require('./entities/branch');
@@ -59,11 +59,7 @@ function load() {
         SELECT attributeId, noteId, type, name, value, isInheritable, position, utcDateModified 
         FROM attributes 
         WHERE isDeleted = 0 
-          AND noteId IN (${noteIdStr})
-          AND (
-              (type = 'label' AND name IN ('archived', 'shareHiddenFromTree', 'shareAlias', 'shareOmitDefaultCss')) 
-              OR (type = 'relation' AND name IN ('imageLink', 'template', 'shareCss'))
-          )`, []);
+          AND noteId IN (${noteIdStr})`);
 
     for (const row of rawAttributeRows) {
         new Attribute(row);

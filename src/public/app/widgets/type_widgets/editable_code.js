@@ -6,16 +6,19 @@ import ws from "../../services/ws.js";
 import appContext from "../../services/app_context.js";
 import toastService from "../../services/toast.js";
 import treeService from "../../services/tree.js";
+import options from "../../services/options.js";
 
 const TPL = `
 <div class="note-detail-code note-detail-printable">
     <style>
     .note-detail-code {
         position: relative;
+        height: 100%;
     }
     
     .note-detail-code-editor {
         min-height: 50px;
+        height: 100%;
     }
     </style>
 
@@ -94,6 +97,7 @@ export default class EditableCodeTypeWidget extends TypeWidget {
             viewportMargin: Infinity,
             indentUnit: 4,
             matchBrackets: true,
+            keyMap: options.is('vimKeymapEnabled') ? "vim": "default",
             matchTags: {bothTags: true},
             highlightSelectionMatches: {showToken: /\w/, annotateScrollbar: false},
             lint: true,
@@ -103,7 +107,8 @@ export default class EditableCodeTypeWidget extends TypeWidget {
             // we linewrap partly also because without it horizontal scrollbar displays only when you scroll
             // all the way to the bottom of the note. With line wrap there's no horizontal scrollbar so no problem
             lineWrapping: true,
-            dragDrop: false // with true the editor inlines dropped files which is not what we expect
+            dragDrop: false, // with true the editor inlines dropped files which is not what we expect
+            placeholder: "Type the content of your code note here..."
         });
 
         this.codeEditor.on('change', () => this.spacedUpdate.scheduleUpdate());
