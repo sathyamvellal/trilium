@@ -340,6 +340,8 @@ function register(app) {
 
     route(POST, '/api/database/find-and-fix-consistency-issues', [auth.checkApiAuthOrElectron, csrfMiddleware], databaseRoute.findAndFixConsistencyIssues, apiResultHandler, false);
 
+    apiRoute(GET, '/api/database/check-integrity', databaseRoute.checkIntegrity);
+
     apiRoute(POST, '/api/script/exec', scriptRoute.exec);
     apiRoute(POST, '/api/script/run/:noteId', scriptRoute.run);
     apiRoute(GET, '/api/script/startup', scriptRoute.getStartupBundles);
@@ -393,7 +395,7 @@ function register(app) {
     apiRoute(DELETE, '/api/etapi-tokens/:etapiTokenId', etapiTokensApiRoutes.deleteToken);
 
     shareRoutes.register(router);
-    
+
     etapiAuthRoutes.register(router);
     etapiAttributeRoutes.register(router);
     etapiBranchRoutes.register(router);

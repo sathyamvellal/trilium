@@ -138,6 +138,8 @@ function createNewNote(params) {
         triggerNoteTitleChanged(note);
         triggerChildNoteCreated(note, parentNote);
 
+        log.info(`Created new note ${note.noteId}, branch ${branch.branchId} of type ${note.type}, mime ${note.mime}`);
+
         return {
             note,
             branch
@@ -632,7 +634,10 @@ function undeleteBranch(branchId, deleteId, taskContext) {
     taskContext.increaseProgressCount();
 
     if (note.isDeleted && note.deleteId === deleteId) {
-        new Note(note).save();
+        // becca entity was already created as skeleton in "new Branch()" above
+        const noteEntity = becca.getNote(note.noteId);
+        noteEntity.updateFromRow(note);
+        noteEntity.save();
 
         const attributes = sql.getRows(`
                 SELECT * FROM attributes 
@@ -736,6 +741,8 @@ function eraseBranches(branchIdsToErase) {
     sql.executeMany(`DELETE FROM branches WHERE branchId IN (???)`, branchIdsToErase);
 
     setEntityChangesAsErased(sql.getManyRows(`SELECT * FROM entity_changes WHERE entityName = 'branches' AND entityId IN (???)`, branchIdsToErase));
+
+    log.info(`Erased branches: ${JSON.stringify(branchIdsToErase)}`);
 }
 
 function eraseAttributes(attributeIdsToErase) {
@@ -746,6 +753,8 @@ function eraseAttributes(attributeIdsToErase) {
     sql.executeMany(`DELETE FROM attributes WHERE attributeId IN (???)`, attributeIdsToErase);
 
     setEntityChangesAsErased(sql.getManyRows(`SELECT * FROM entity_changes WHERE entityName = 'attributes' AND entityId IN (???)`, attributeIdsToErase));
+
+    log.info(`Erased attributes: ${JSON.stringify(attributeIdsToErase)}`);
 }
 
 function eraseDeletedEntities(eraseEntitiesAfterTimeInSeconds = null) {
