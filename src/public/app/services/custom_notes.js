@@ -39,8 +39,19 @@ async function getMonthNote(rootNoteLabel, date, params={}) {
     return await froca.getNote(note.noteId);
 }
 
+/** @return {NoteShort} */
+async function getYearNote(rootNoteLabel, date, params={}) {
+    params = Object.assign({}, defaultParams, params);
+    const note = await server.get('custom-notes/' + rootNoteLabel + '/year/' + date + '?' + new URLSearchParams(params), "custom-note");
+
+    await ws.waitForMaxKnownEntityChangeId();
+
+    return await froca.getNote(note.noteId);
+}
+
 export default {
     getDateNote,
     getWeekNote,
     getMonthNote,
+    getYearNote,
 }
