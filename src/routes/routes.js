@@ -43,6 +43,7 @@ const fontsRoute = require('./api/fonts');
 const etapiTokensApiRoutes = require('./api/etapi_tokens');
 const shareRoutes = require('../share/routes');
 const etapiAuthRoutes = require('../etapi/auth');
+const etapiAppInfoRoutes = require('../etapi/app_info');
 const etapiAttributeRoutes = require('../etapi/attributes');
 const etapiBranchRoutes = require('../etapi/branches');
 const etapiNoteRoutes = require('../etapi/notes');
@@ -290,6 +291,7 @@ function register(app) {
     apiRoute(GET, '/api/custom-notes/:customRoot/month/:date', customNotesRoute.getMonthNote);
     apiRoute(GET, '/api/custom-notes/:customRoot/year/:date', customNotesRoute.getYearNote);
 
+    // :filename is not used by trilium, but instead used for "save as" to assign a human readable filename
     route(GET, '/api/images/:noteId/:filename', [auth.checkApiAuthOrElectron], imageRoute.returnImage);
     route(POST, '/api/images', [auth.checkApiAuthOrElectron, uploadMiddleware, csrfMiddleware], imageRoute.uploadImage, apiResultHandler);
     route(PUT, '/api/images/:noteId', [auth.checkApiAuthOrElectron, uploadMiddleware, csrfMiddleware], imageRoute.updateImage, apiResultHandler);
@@ -330,7 +332,7 @@ function register(app) {
 
     apiRoute(GET, '/api/sql/schema', sqlRoute.getSchema);
     apiRoute(POST, '/api/sql/execute/:noteId', sqlRoute.execute);
-    route(POST, '/api/database/anonymize', [auth.checkApiAuthOrElectron, csrfMiddleware], databaseRoute.anonymize, apiResultHandler, false);
+    route(POST, '/api/database/anonymize/:type', [auth.checkApiAuthOrElectron, csrfMiddleware], databaseRoute.anonymize, apiResultHandler, false);
 
     // backup requires execution outside of transaction
     route(POST, '/api/database/backup-database', [auth.checkApiAuthOrElectron, csrfMiddleware], databaseRoute.backupDatabase, apiResultHandler, false);
@@ -339,6 +341,8 @@ function register(app) {
     route(POST, '/api/database/vacuum-database', [auth.checkApiAuthOrElectron, csrfMiddleware], databaseRoute.vacuumDatabase, apiResultHandler, false);
 
     route(POST, '/api/database/find-and-fix-consistency-issues', [auth.checkApiAuthOrElectron, csrfMiddleware], databaseRoute.findAndFixConsistencyIssues, apiResultHandler, false);
+
+    apiRoute(GET, '/api/database/check-integrity', databaseRoute.checkIntegrity);
 
     apiRoute(POST, '/api/script/exec', scriptRoute.exec);
     apiRoute(POST, '/api/script/run/:noteId', scriptRoute.run);
@@ -361,6 +365,7 @@ function register(app) {
     route(POST, '/api/login/sync', [], loginApiRoute.loginSync, apiResultHandler);
     // this is for entering protected mode so user has to be already logged-in (that's the reason we don't require username)
     apiRoute(POST, '/api/login/protected', loginApiRoute.loginToProtectedSession);
+    apiRoute(POST, '/api/login/protected/touch', loginApiRoute.touchProtectedSession);
     apiRoute(POST, '/api/logout/protected', loginApiRoute.logoutFromProtectedSession);
 
     route(POST, '/api/login/token', [], loginApiRoute.token, apiResultHandler);
@@ -393,8 +398,9 @@ function register(app) {
     apiRoute(DELETE, '/api/etapi-tokens/:etapiTokenId', etapiTokensApiRoutes.deleteToken);
 
     shareRoutes.register(router);
-    
+
     etapiAuthRoutes.register(router);
+    etapiAppInfoRoutes.register(router);
     etapiAttributeRoutes.register(router);
     etapiBranchRoutes.register(router);
     etapiNoteRoutes.register(router);

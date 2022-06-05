@@ -17,6 +17,7 @@ const becca = require('../becca/becca');
 const Branch = require('../becca/entities/branch');
 const Note = require('../becca/entities/note');
 const Attribute = require('../becca/entities/attribute');
+const dayjs = require("dayjs");
 
 function getNewNotePosition(parentNoteId) {
     const note = becca.notes[parentNoteId];
@@ -52,7 +53,7 @@ function deriveMime(type, mime) {
         mime = 'text/html';
     } else if (type === 'code' || type === 'mermaid') {
         mime = 'text/plain';
-    } else if (['relation-map', 'search'].includes(type)) {
+    } else if (['relation-map', 'search', 'canvas'].includes(type)) {
         mime = 'application/json';
     } else if (['render', 'book'].includes(type)) {
         mime = '';
@@ -78,12 +79,34 @@ function copyChildAttributes(parentNote, childNote) {
     }
 }
 
+function getNewNoteTitle(parentNote) {
+    let title = "new note";
+
+    const titleTemplate = parentNote.getLabelValue('titleTemplate');
+
+    if (titleTemplate !== null) {
+        try {
+            const now = dayjs(cls.getLocalNowDateTime() || new Date());
+
+            // "officially" injected values:
+            // - now
+            // - parentNote
+
+            title = eval('`' + titleTemplate + '`');
+        } catch (e) {
+            log.error(`Title template of note '${parentNote.noteId}' failed with: ${e.message}`);
+        }
+    }
+
+    return title;
+}
+
 /**
  * Following object properties are mandatory:
  * - {string} parentNoteId
  * - {string} title
  * - {*} content
- * - {string} type - text, code, file, image, search, book, relation-map, render
+ * - {string} type - text, code, file, image, search, book, relation-map, canvas, render
  *
  * Following are optional (have defaults)
  * - {string} mime - value is derived from default mimes for type
@@ -103,8 +126,7 @@ function createNewNote(params) {
     }
 
     if (params.title === null || params.title === undefined) {
-        // empty title is allowed since it's possible to create such in the UI
-        throw new Error(`Note title must be set`);
+        params.title = getNewNoteTitle(parentNote);
     }
 
     if (params.content === null || params.content === undefined) {
@@ -137,6 +159,8 @@ function createNewNote(params) {
 
         triggerNoteTitleChanged(note);
         triggerChildNoteCreated(note, parentNote);
+
+        log.info(`Created new note '${note.noteId}', branch '${branch.branchId}' of type '${note.type}', mime '${note.mime}'`);
 
         return {
             note,
@@ -282,10 +306,10 @@ async function downloadImage(noteId, imageUrl) {
 
         imageUrlToNoteIdMapping[imageUrl] = note.noteId;
 
-        log.info(`Download of ${imageUrl} succeeded and was saved as image note ${note.noteId}`);
+        log.info(`Download of '${imageUrl}' succeeded and was saved as image note '${note.noteId}'`);
     }
     catch (e) {
-        log.error(`Download of ${imageUrl} for note ${noteId} failed with error: ${e.message} ${e.stack}`);
+        log.error(`Download of '${imageUrl}' for note '${noteId}' failed with error: ${e.message} ${e.stack}`);
     }
 }
 
@@ -299,6 +323,10 @@ function replaceUrl(content, url, imageNote) {
 }
 
 function downloadImages(noteId, content) {
+    if (!optionService.getOptionBool("downloadImagesAutomatically")) {
+        return content;
+    }
+
     const imageRe = /<img[^>]*?\ssrc=['"]([^'">]+)['"]/ig;
     let imageMatch;
 
@@ -370,7 +398,7 @@ function downloadImages(noteId, content) {
                 const origNote = becca.getNote(noteId);
 
                 if (!origNote) {
-                    log.error(`Cannot find note ${noteId} to replace image link.`);
+                    log.error(`Cannot find note '${noteId}' to replace image link.`);
                     return;
                 }
 
@@ -391,7 +419,7 @@ function downloadImages(noteId, content) {
 
                     scanForLinks(origNote);
 
-                    console.log(`Fixed the image links for note ${noteId} to the offline saved.`);
+                    console.log(`Fixed the image links for note '${noteId}' to the offline saved.`);
                 }
             });
         }, 5000);
@@ -488,7 +516,7 @@ function updateNote(noteId, noteUpdates) {
     const note = becca.getNote(noteId);
 
     if (!note.isContentAvailable()) {
-        throw new Error(`Note ${noteId} is not available for change!`);
+        throw new Error(`Note '${noteId}' is not available for change!`);
     }
 
     saveNoteRevision(note);
@@ -523,69 +551,6 @@ function updateNote(noteId, noteUpdates) {
 }
 
 /**
- * @param {Branch} branch
- * @param {string|null} deleteId
- * @param {TaskContext} taskContext
- *
- * @return {boolean} - true if note has been deleted, false otherwise
- */
-function deleteBranch(branch, deleteId, taskContext) {
-    taskContext.increaseProgressCount();
-
-    if (!branch) {
-        return false;
-    }
-
-    if (branch.branchId === 'root'
-        || branch.noteId === 'root'
-        || branch.noteId === cls.getHoistedNoteId()) {
-
-        throw new Error("Can't delete root or hoisted branch/note");
-    }
-
-    branch.markAsDeleted(deleteId);
-
-    const note = branch.getNote();
-    const notDeletedBranches = note.getParentBranches();
-
-    if (notDeletedBranches.length === 0) {
-        for (const childBranch of note.getChildBranches()) {
-            deleteBranch(childBranch, deleteId, taskContext);
-        }
-
-        // first delete children and then parent - this will show up better in recent changes
-
-        log.info("Deleting note " + note.noteId);
-
-        for (const attribute of note.getOwnedAttributes()) {
-            attribute.markAsDeleted(deleteId);
-        }
-
-        for (const relation of note.getTargetRelations()) {
-            relation.markAsDeleted(deleteId);
-        }
-
-        note.markAsDeleted(deleteId);
-
-        return true;
-    }
-    else {
-        return false;
-    }
-}
-
-/**
- * @param {Note} note
- * @param {string|null} deleteId
- * @param {TaskContext} taskContext
- */
-function deleteNote(note, deleteId, taskContext) {
-    for (const branch of note.getParentBranches()) {
-        deleteBranch(branch, deleteId, taskContext);
-    }
-}
-
-/**
  * @param {string} noteId
  * @param {TaskContext} taskContext
  */
@@ -593,7 +558,7 @@ function undeleteNote(noteId, taskContext) {
     const note = sql.getRow("SELECT * FROM notes WHERE noteId = ?", [noteId]);
 
     if (!note.isDeleted) {
-        log.error(`Note ${noteId} is not deleted and thus cannot be undeleted.`);
+        log.error(`Note '${noteId}' is not deleted and thus cannot be undeleted.`);
         return;
     }
 
@@ -632,7 +597,10 @@ function undeleteBranch(branchId, deleteId, taskContext) {
     taskContext.increaseProgressCount();
 
     if (note.isDeleted && note.deleteId === deleteId) {
-        new Note(note).save();
+        // becca entity was already created as skeleton in "new Branch()" above
+        const noteEntity = becca.getNote(note.noteId);
+        noteEntity.updateFromRow(note);
+        noteEntity.save();
 
         const attributes = sql.getRows(`
                 SELECT * FROM attributes 
@@ -736,6 +704,8 @@ function eraseBranches(branchIdsToErase) {
     sql.executeMany(`DELETE FROM branches WHERE branchId IN (???)`, branchIdsToErase);
 
     setEntityChangesAsErased(sql.getManyRows(`SELECT * FROM entity_changes WHERE entityName = 'branches' AND entityId IN (???)`, branchIdsToErase));
+
+    log.info(`Erased branches: ${JSON.stringify(branchIdsToErase)}`);
 }
 
 function eraseAttributes(attributeIdsToErase) {
@@ -746,6 +716,8 @@ function eraseAttributes(attributeIdsToErase) {
     sql.executeMany(`DELETE FROM attributes WHERE attributeId IN (???)`, attributeIdsToErase);
 
     setEntityChangesAsErased(sql.getManyRows(`SELECT * FROM entity_changes WHERE entityName = 'attributes' AND entityId IN (???)`, attributeIdsToErase));
+
+    log.info(`Erased attributes: ${JSON.stringify(attributeIdsToErase)}`);
 }
 
 function eraseDeletedEntities(eraseEntitiesAfterTimeInSeconds = null) {
@@ -929,8 +901,6 @@ module.exports = {
     createNewNote,
     createNewNoteWithTarget,
     updateNote,
-    deleteBranch,
-    deleteNote,
     undeleteNote,
     protectNoteRecursively,
     scanForLinks,
@@ -940,5 +910,6 @@ module.exports = {
     triggerNoteTitleChanged,
     eraseDeletedNotesNow,
     eraseNotesWithDeleteId,
-    saveNoteRevision
+    saveNoteRevision,
+    downloadImages
 };

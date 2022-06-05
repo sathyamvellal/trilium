@@ -191,7 +191,7 @@ export default class EditableTextTypeWidget extends AbstractTextTypeWidget {
         await this.initialized;
 
         this.textEditor.model.change(writer => {
-            const insertPosition = this.textEditor.model.document.selection.getFirstPosition();
+            const insertPosition = this.textEditor.model.document.selection.getLastPosition();
             writer.insertText(text, insertPosition);
         });
     }
@@ -229,14 +229,18 @@ export default class EditableTextTypeWidget extends AbstractTextTypeWidget {
         return !selection.isCollapsed;
     }
 
-    async executeInActiveEditorEvent({callback}) {
-        if (!this.isActive()) {
+    async executeWithTextEditorEvent({callback, resolve, ntxId}) {
+        if (!this.isNoteContext(ntxId)) {
             return;
         }
 
         await this.initialized;
 
-        callback(this.textEditor);
+        if (callback) {
+            callback(this.textEditor);
+        }
+
+        resolve(this.textEditor);
     }
 
     addLinkToTextCommand() {

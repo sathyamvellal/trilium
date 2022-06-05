@@ -46,6 +46,11 @@ module.exports = [
     { type: 'label', name: 'shareAlias' },
     { type: 'label', name: 'shareOmitDefaultCss' },
     { type: 'label', name: 'shareRoot' },
+    { type: 'label', name: 'shareRaw' },
+    { type: 'label', name: 'shareDisallowRobotIndexing' },
+    { type: 'label', name: 'displayRelations' },
+    { type: 'label', name: 'hideRelations' },
+    { type: 'label', name: 'titleTemplate' },
 
     // relation names
     { type: 'relation', name: 'internalLink' },

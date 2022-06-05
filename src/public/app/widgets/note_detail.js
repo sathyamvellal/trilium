@@ -10,6 +10,7 @@ import FileTypeWidget from "./type_widgets/file.js";
 import ImageTypeWidget from "./type_widgets/image.js";
 import RenderTypeWidget from "./type_widgets/render.js";
 import RelationMapTypeWidget from "./type_widgets/relation_map.js";
+import CanvasTypeWidget from "./type_widgets/canvas.js";
 import ProtectedSessionTypeWidget from "./type_widgets/protected_session.js";
 import BookTypeWidget from "./type_widgets/book.js";
 import appContext from "../services/app_context.js";
@@ -50,6 +51,7 @@ const typeWidgetClasses = {
     'search': NoneTypeWidget,
     'render': RenderTypeWidget,
     'relation-map': RelationMapTypeWidget,
+    'canvas': CanvasTypeWidget,
     'protected-session': ProtectedSessionTypeWidget,
     'book': BookTypeWidget,
     'note-map': NoteMapTypeWidget
@@ -66,7 +68,7 @@ export default class NoteDetailWidget extends NoteContextAwareWidget {
             const {noteId} = note;
 
             const dto = note.dto;
-            dto.content = this.getTypeWidget().getContent();
+            dto.content = await this.getTypeWidget().getContent();
 
             // for read only notes
             if (dto.content === undefined) {
@@ -145,11 +147,15 @@ export default class NoteDetailWidget extends NoteContextAwareWidget {
         this.checkFullHeight();
     }
 
+    /**
+     * sets full height of container that contains note content for a subset of note-types
+     */
     checkFullHeight() {
         // https://github.com/zadam/trilium/issues/2522
         this.$widget.toggleClass("full-height",
             !this.noteContext.hasNoteList()
-            && ['editable-text', 'editable-code'].includes(this.type));
+            && ['editable-text', 'editable-code', 'canvas'].includes(this.type)
+            && this.mime !== 'text/x-sqlite;schema=trilium');
     }
 
     getTypeWidget() {
@@ -275,7 +281,7 @@ export default class NoteDetailWidget extends NoteContextAwareWidget {
 
             const label = attrs.find(attr =>
                 attr.type === 'label'
-                && ['readOnly', 'autoReadOnlyDisabled', 'cssClass', 'displayRelations'].includes(attr.name)
+                && ['readOnly', 'autoReadOnlyDisabled', 'cssClass', 'displayRelations', 'hideRelations'].includes(attr.name)
                 && attributeService.isAffecting(attr, this.note));
 
             const relation = attrs.find(attr =>
@@ -299,6 +305,16 @@ export default class NoteDetailWidget extends NoteContextAwareWidget {
         if (this.isNoteContext(noteContext.ntxId)) {
             this.refresh();
         }
+    }
+
+    async executeInActiveNoteDetailWidgetEvent({callback}) {
+        if (!this.isActiveNoteContext()) {
+            return;
+        }
+
+        await this.initialized;
+
+        callback(this);
     }
 
     async cutIntoNoteCommand() {
