@@ -443,7 +443,37 @@ function FrontendScriptApi(startNote, currentNote, originEntity = null, $contain
      * @param {string} date - e.g. "2019-04-29"
      * @return {Promise<NoteShort>}
      */
-     this.getCustomNote = customNotesService.getDateNote;
+     this.getCustomDateNote = customNotesService.getDateNote;
+
+    /**
+     * Returns custom week-note. If it doesn't exist, it is automatically created.
+     *
+     * @method
+     * @param {string} rootNoteLabel - e.g. calendarRoot
+     * @param {string} date - e.g. "2019-04-29"
+     * @return {Promise<NoteShort>}
+     */
+     this.getCustomWeekNote = customNotesService.getWeekNote;
+
+    /**
+     * Returns custom month-note. If it doesn't exist, it is automatically created.
+     *
+     * @method
+     * @param {string} rootNoteLabel - e.g. calendarRoot
+     * @param {string} date - e.g. "2019-04-29"
+     * @return {Promise<NoteShort>}
+     */
+     this.getCustomMonthNote = customNotesService.getMonthNote;
+
+    /**
+     * Returns custom year-note. If it doesn't exist, it is automatically created.
+     *
+     * @method
+     * @param {string} rootNoteLabel - e.g. calendarRoot
+     * @param {string} date - e.g. "2019-04-29"
+     * @return {Promise<NoteShort>}
+     */
+     this.getCustomYearNote = customNotesService.getYearNote;
 
     /**
      * Hoist note in the current tab. See https://github.com/zadam/trilium/wiki/Note-hoisting

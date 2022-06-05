@@ -288,6 +288,7 @@ function register(app) {
     apiRoute(GET, '/api/custom-notes/:customRoot/date/:date', customNotesRoute.getDateNote);
     apiRoute(GET, '/api/custom-notes/:customRoot/week/:date', customNotesRoute.getWeekNote);
     apiRoute(GET, '/api/custom-notes/:customRoot/month/:date', customNotesRoute.getMonthNote);
+    apiRoute(GET, '/api/custom-notes/:customRoot/year/:date', customNotesRoute.getYearNote);
 
     route(GET, '/api/images/:noteId/:filename', [auth.checkApiAuthOrElectron], imageRoute.returnImage);
     route(POST, '/api/images', [auth.checkApiAuthOrElectron, uploadMiddleware, csrfMiddleware], imageRoute.uploadImage, apiResultHandler);

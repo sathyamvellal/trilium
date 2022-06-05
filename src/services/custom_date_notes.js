@@ -62,7 +62,6 @@ function getNoteEndingith(parentNoteId, endsWith) {
 
 /** @return {Note} */
 function getRootNote(customRootLabel) {
-    console.log("customRootLabel:", customRootLabel);
     let rootNote = attributeService.getNoteWithLabel(customRootLabel);
 
     if (!rootNote) {
@@ -85,15 +84,14 @@ function getRootNote(customRootLabel) {
 }
 
 /** @return {Note} */
-function getYearNote(dateStr, rootNoteLabel, rootNote) {
+function getYearNote(dateStr, rootNoteLabel, rootNote, params) {
     if (!rootNote) {
         rootNote = getRootNote(rootNoteLabel);
     }
 
     const yearStr = dateStr.substr(0, 4);
 
-    let yearNote = attributeService.getNoteWithLabel(getYearLabel(rootNoteLabel), yearStr)
-        || getNoteStartingWith(rootNote.noteId, yearStr);
+    let yearNote = attributeService.getNoteWithLabel(getYearLabel(rootNoteLabel), yearStr);
 
     if (yearNote) {
         return yearNote;
@@ -115,8 +113,8 @@ function getYearNote(dateStr, rootNoteLabel, rootNote) {
     return yearNote;
 }
 
-function getMonthNoteTitle(rootNote, monthNumber, dateObj) {
-    const pattern = rootNote.getOwnedLabelValue("monthPattern") || "{monthNumberPadded} - {month}";
+function getMonthNoteTitle(monthNoteTitlePattern, rootNote, monthNumber, dateObj) {
+    const pattern = monthNoteTitlePattern || rootNote.getOwnedLabelValue("monthPattern") || "{monthNumberPadded} - {month}";
     const monthName = MONTHS[dateObj.getMonth()];
 
     return pattern
@@ -125,7 +123,7 @@ function getMonthNoteTitle(rootNote, monthNumber, dateObj) {
 }
 
 /** @return {Note} */
-function getMonthNote(dateStr, rootNoteLabel, rootNote) {
+function getMonthNote(dateStr, rootNoteLabel, rootNote, params) {
     if (!rootNote) {
         rootNote = getRootNote(rootNoteLabel);
     }
@@ -139,22 +137,17 @@ function getMonthNote(dateStr, rootNoteLabel, rootNote) {
         return monthNote;
     }
 
-    const yearNote = getYearNote(dateStr, rootNoteLabel, rootNote);
-
-    monthNote = getNoteStartingWith(yearNote.noteId, monthNumber);
-
-    if (monthNote) {
-        return monthNote;
-    }
+    const yearNote = getYearNote(dateStr, rootNoteLabel, rootNote, params);
 
     const dateObj = dateUtils.parseLocalDate(dateStr);
-
-    const noteTitle = getMonthNoteTitle(rootNote, monthNumber, dateObj);
+    const noteTitle = getMonthNoteTitle(params.monthNoteTitlePattern, rootNote, monthNumber, dateObj);
 
     sql.transactional(() => {
         monthNote = createNote(yearNote, noteTitle);
 
-        attributeService.createLabel(monthNote.noteId, getMonthLabel(rootNoteLabel), monthStr);
+        if (params.labeledMonthNote == "true") {
+            attributeService.createLabel(monthNote.noteId, getMonthLabel(rootNoteLabel), monthStr);
+        }
         attributeService.createLabel(monthNote.noteId, 'sorted');
 
         const monthTemplateAttr = rootNote.getOwnedAttribute('relation', 'monthTemplate');
@@ -167,7 +160,7 @@ function getMonthNote(dateStr, rootNoteLabel, rootNote) {
     return monthNote;
 }
 
-function getStartOfTheWeek(date, startOfTheWeek) {
+function getStartDateOfTheWeek(date, startOfTheWeek) {
     const day = date.getDay();
     let diff;
 
@@ -193,8 +186,8 @@ function getStartOfTheWeek(date, startOfTheWeek) {
     return new Date(date.setDate(diff));
 }
 
-function getWeekNoteTitle(rootNote, dayNumber, dateObj) {
-    const pattern = rootNote.getOwnedLabelValue("weekPattern") || "Week of {monthNumberPadded}-{dayInMonthPadded}";
+function getWeekNoteTitle(weekNoteTitlePattern, rootNote, dayNumber, dateObj) {
+    const pattern = weekNoteTitlePattern || rootNote.getOwnedLabelValue("weekPattern") || "Week of {monthNumberPadded}-{dayInMonthPadded}";
     const monthNumber = dateUtils.utcDateStr(dateObj).substr(5, 2);
 
     return pattern
@@ -203,8 +196,8 @@ function getWeekNoteTitle(rootNote, dayNumber, dateObj) {
 }
 
 /** @return {Note} */
-function getWeekNote(dateStr, rootNoteLabel, rootNote, startOfTheWeek='monday') {
-    const dateObj = getStartOfTheWeek(dateUtils.parseLocalDate(dateStr), startOfTheWeek);
+function getWeekNote(dateStr, rootNoteLabel, rootNote, params) {
+    const dateObj = getStartDateOfTheWeek(dateUtils.parseLocalDate(dateStr), params.startOfTheWeek);
     dateStr = dateUtils.utcDateStr(dateObj).substr(0, 10);
 
     if (!rootNote) {
@@ -217,21 +210,17 @@ function getWeekNote(dateStr, rootNoteLabel, rootNote, startOfTheWeek='monday') 
         return weekNote;
     }
 
-    const monthNote = getMonthNote(dateStr, rootNoteLabel, rootNote);
+    const monthNote = getMonthNote(dateStr, rootNoteLabel, rootNote, params);
     const dayNumber = dateStr.substr(8, 2);
 
-    weekNote = getNoteEndingith(monthNote.noteId, dayNumber);
-
-    if (weekNote) {
-        return weekNote;
-    }
-
-    const noteTitle = getWeekNoteTitle(rootNote, dayNumber, dateObj);
+    const noteTitle = getWeekNoteTitle(params.weekNoteTitlePattern, rootNote, dayNumber, dateObj);
 
     sql.transactional(() => {
         weekNote = createNote(monthNote, noteTitle);
 
-        attributeService.createLabel(weekNote.noteId, getWeekLabel(rootNoteLabel), dateStr);
+        if (params.labeledWeekNote == "true") {
+            attributeService.createLabel(weekNote.noteId, getWeekLabel(rootNoteLabel), dateStr);
+        }
         attributeService.createLabel(weekNote.noteId, 'sorted');
 
         const weekTemplateAttr = rootNote.getOwnedAttribute('relation', 'weekTemplate');
@@ -244,11 +233,13 @@ function getWeekNote(dateStr, rootNoteLabel, rootNote, startOfTheWeek='monday') 
     return weekNote;
 }
 
-function getDateNoteTitle(rootNote, dayNumber, dateObj) {
-    const pattern = rootNote.getOwnedLabelValue("datePattern") || "{dayInMonthPadded} - {weekDay}";
+function getDateNoteTitle(dateNoteTitlePattern, rootNote, dayNumber, dateObj) {
+    const pattern = dateNoteTitlePattern || rootNote.getOwnedLabelValue("datePattern") || "{dayInMonthPadded} - {weekDay}";
     const weekDay = DAYS[dateObj.getDay()];
+    const monthNumber = dateUtils.utcDateStr(dateObj).substr(5, 2);
 
     return pattern
+        .replace(/{monthNumber}/g, monthNumber)
         .replace(/{dayInMonthPadded}/g, dayNumber)
         .replace(/{isoDate}/g, dateUtils.localNowDate())
         .replace(/{weekDay}/g, weekDay)
@@ -257,9 +248,7 @@ function getDateNoteTitle(rootNote, dayNumber, dateObj) {
 }
 
 /** @return {Note} */
-function getDateNote(dateStr, rootNoteLabel, rootNote, startOfTheWeek='monday') {
-    console.log("rootNoteLabel:", rootNoteLabel);
-    console.log("rootNote:", rootNote);
+function getDateNote(dateStr, rootNoteLabel, rootNote, params) {
     let dateNote = attributeService.getNoteWithLabel(getDateLabel(rootNoteLabel), dateStr);
 
     if (dateNote) {
@@ -267,23 +256,18 @@ function getDateNote(dateStr, rootNoteLabel, rootNote, startOfTheWeek='monday') 
     }
 
     rootNote = rootNote || getRootNote(rootNoteLabel);
-    const weekNote = getWeekNote(dateStr, rootNoteLabel, rootNote, startOfTheWeek);
+    const weekNote = getWeekNote(dateStr, rootNoteLabel, rootNote, params);
     const dayNumber = dateStr.substr(8, 2);
 
-    dateNote = getNoteStartingWith(weekNote.noteId, dayNumber);
-
-    if (dateNote) {
-        return dateNote;
-    }
-
     const dateObj = dateUtils.parseLocalDate(dateStr);
-
-    const noteTitle = getDateNoteTitle(rootNote, dayNumber, dateObj);
+    const noteTitle = getDateNoteTitle(params.dateNoteTitlePattern, rootNote, dayNumber, dateObj);
 
     sql.transactional(() => {
         dateNote = createNote(weekNote, noteTitle);
 
-        attributeService.createLabel(dateNote.noteId, getDateLabel(rootNoteLabel), dateStr.substr(0, 10));
+        if (params.labeledDateNote == "true") {
+            attributeService.createLabel(dateNote.noteId, getDateLabel(rootNoteLabel), dateStr.substr(0, 10));
+        }
 
         const dateTemplateAttr = rootNote.getOwnedAttribute('relation', 'dateTemplate');
 
