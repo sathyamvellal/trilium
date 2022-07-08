@@ -17,6 +17,7 @@ const becca = require('../becca/becca');
 const Branch = require('../becca/entities/branch');
 const Note = require('../becca/entities/note');
 const Attribute = require('../becca/entities/attribute');
+const dayjs = require("dayjs");
 
 function getNewNotePosition(parentNoteId) {
     const note = becca.notes[parentNoteId];
@@ -52,9 +53,9 @@ function deriveMime(type, mime) {
         mime = 'text/html';
     } else if (type === 'code' || type === 'mermaid') {
         mime = 'text/plain';
-    } else if (['relation-map', 'search'].includes(type)) {
+    } else if (['relation-map', 'search', 'canvas'].includes(type)) {
         mime = 'application/json';
-    } else if (['render', 'book'].includes(type)) {
+    } else if (['render', 'book', 'web-view'].includes(type)) {
         mime = '';
     } else {
         mime = 'application/octet-stream';
@@ -78,12 +79,34 @@ function copyChildAttributes(parentNote, childNote) {
     }
 }
 
+function getNewNoteTitle(parentNote) {
+    let title = "new note";
+
+    const titleTemplate = parentNote.getLabelValue('titleTemplate');
+
+    if (titleTemplate !== null) {
+        try {
+            const now = dayjs(cls.getLocalNowDateTime() || new Date());
+
+            // "officially" injected values:
+            // - now
+            // - parentNote
+
+            title = eval('`' + titleTemplate + '`');
+        } catch (e) {
+            log.error(`Title template of note '${parentNote.noteId}' failed with: ${e.message}`);
+        }
+    }
+
+    return title;
+}
+
 /**
  * Following object properties are mandatory:
  * - {string} parentNoteId
  * - {string} title
  * - {*} content
- * - {string} type - text, code, file, image, search, book, relation-map, render
+ * - {string} type - text, code, file, image, search, book, relation-map, canvas, render
  *
  * Following are optional (have defaults)
  * - {string} mime - value is derived from default mimes for type
@@ -103,8 +126,7 @@ function createNewNote(params) {
     }
 
     if (params.title === null || params.title === undefined) {
-        // empty title is allowed since it's possible to create such in the UI
-        throw new Error(`Note title must be set`);
+        params.title = getNewNoteTitle(parentNote);
     }
 
     if (params.content === null || params.content === undefined) {
@@ -135,10 +157,21 @@ function createNewNote(params) {
 
         copyChildAttributes(parentNote, note);
 
+        if (params.templateNoteId) {
+            if (!becca.getNote(params.templateNoteId)) {
+                throw new Error(`Template note '${params.templateNoteId}' does not exist.`);
+            }
+
+            // could be already copied from the parent via `child:`, no need to have 2
+            if (!note.hasOwnedRelation('template', params.templateNoteId)) {
+                note.addRelation('template', params.templateNoteId);
+            }
+        }
+
         triggerNoteTitleChanged(note);
         triggerChildNoteCreated(note, parentNote);
 
-        log.info(`Created new note ${note.noteId}, branch ${branch.branchId} of type ${note.type}, mime ${note.mime}`);
+        log.info(`Created new note '${note.noteId}', branch '${branch.branchId}' of type '${note.type}', mime '${note.mime}'`);
 
         return {
             note,
@@ -284,10 +317,10 @@ async function downloadImage(noteId, imageUrl) {
 
         imageUrlToNoteIdMapping[imageUrl] = note.noteId;
 
-        log.info(`Download of ${imageUrl} succeeded and was saved as image note ${note.noteId}`);
+        log.info(`Download of '${imageUrl}' succeeded and was saved as image note '${note.noteId}'`);
     }
     catch (e) {
-        log.error(`Download of ${imageUrl} for note ${noteId} failed with error: ${e.message} ${e.stack}`);
+        log.error(`Download of '${imageUrl}' for note '${noteId}' failed with error: ${e.message} ${e.stack}`);
     }
 }
 
@@ -301,6 +334,10 @@ function replaceUrl(content, url, imageNote) {
 }
 
 function downloadImages(noteId, content) {
+    if (!optionService.getOptionBool("downloadImagesAutomatically")) {
+        return content;
+    }
+
     const imageRe = /<img[^>]*?\ssrc=['"]([^'">]+)['"]/ig;
     let imageMatch;
 
@@ -372,7 +409,7 @@ function downloadImages(noteId, content) {
                 const origNote = becca.getNote(noteId);
 
                 if (!origNote) {
-                    log.error(`Cannot find note ${noteId} to replace image link.`);
+                    log.error(`Cannot find note '${noteId}' to replace image link.`);
                     return;
                 }
 
@@ -393,7 +430,7 @@ function downloadImages(noteId, content) {
 
                     scanForLinks(origNote);
 
-                    console.log(`Fixed the image links for note ${noteId} to the offline saved.`);
+                    console.log(`Fixed the image links for note '${noteId}' to the offline saved.`);
                 }
             });
         }, 5000);
@@ -465,7 +502,7 @@ function saveLinks(note, content) {
     return content;
 }
 
-function saveNoteRevision(note) {
+function saveNoteRevisionIfNeeded(note) {
     // files and images are versioned separately
     if (note.type === 'file' || note.type === 'image' || note.hasLabel('disableVersioning')) {
         return;
@@ -482,109 +519,22 @@ function saveNoteRevision(note) {
     const msSinceDateCreated = now.getTime() - dateUtils.parseDateTime(note.utcDateCreated).getTime();
 
     if (!existingNoteRevisionId && msSinceDateCreated >= noteRevisionSnapshotTimeInterval * 1000) {
-        noteRevisionService.createNoteRevision(note);
+        note.saveNoteRevision();
     }
 }
 
-function updateNote(noteId, noteUpdates) {
+function updateNoteContent(noteId, content) {
     const note = becca.getNote(noteId);
 
     if (!note.isContentAvailable()) {
-        throw new Error(`Note ${noteId} is not available for change!`);
+        throw new Error(`Note '${noteId}' is not available for change!`);
     }
 
-    saveNoteRevision(note);
+    saveNoteRevisionIfNeeded(note);
 
-    // if protected status changed, then we need to encrypt/decrypt the content anyway
-    if (['file', 'image'].includes(note.type) && note.isProtected !== noteUpdates.isProtected) {
-        noteUpdates.content = note.getContent();
-    }
+    content = saveLinks(note, content);
 
-    const noteTitleChanged = note.title !== noteUpdates.title;
-
-    note.title = noteUpdates.title;
-    note.isProtected = noteUpdates.isProtected;
-    note.save();
-
-    if (noteUpdates.content !== undefined && noteUpdates.content !== null) {
-        noteUpdates.content = saveLinks(note, noteUpdates.content);
-
-        note.setContent(noteUpdates.content);
-    }
-
-    if (noteTitleChanged) {
-        triggerNoteTitleChanged(note);
-    }
-
-    noteRevisionService.protectNoteRevisions(note);
-
-    return {
-        dateModified: note.dateModified,
-        utcDateModified: note.utcDateModified
-    };
-}
-
-/**
- * @param {Branch} branch
- * @param {string|null} deleteId
- * @param {TaskContext} taskContext
- *
- * @return {boolean} - true if note has been deleted, false otherwise
- */
-function deleteBranch(branch, deleteId, taskContext) {
-    taskContext.increaseProgressCount();
-
-    if (!branch) {
-        return false;
-    }
-
-    if (branch.branchId === 'root'
-        || branch.noteId === 'root'
-        || branch.noteId === cls.getHoistedNoteId()) {
-
-        throw new Error("Can't delete root or hoisted branch/note");
-    }
-
-    branch.markAsDeleted(deleteId);
-
-    const note = branch.getNote();
-    const notDeletedBranches = note.getParentBranches();
-
-    if (notDeletedBranches.length === 0) {
-        for (const childBranch of note.getChildBranches()) {
-            deleteBranch(childBranch, deleteId, taskContext);
-        }
-
-        // first delete children and then parent - this will show up better in recent changes
-
-        log.info("Deleting note " + note.noteId);
-
-        for (const attribute of note.getOwnedAttributes()) {
-            attribute.markAsDeleted(deleteId);
-        }
-
-        for (const relation of note.getTargetRelations()) {
-            relation.markAsDeleted(deleteId);
-        }
-
-        note.markAsDeleted(deleteId);
-
-        return true;
-    }
-    else {
-        return false;
-    }
-}
-
-/**
- * @param {Note} note
- * @param {string|null} deleteId
- * @param {TaskContext} taskContext
- */
-function deleteNote(note, deleteId, taskContext) {
-    for (const branch of note.getParentBranches()) {
-        deleteBranch(branch, deleteId, taskContext);
-    }
+    note.setContent(content);
 }
 
 /**
@@ -595,7 +545,7 @@ function undeleteNote(noteId, taskContext) {
     const note = sql.getRow("SELECT * FROM notes WHERE noteId = ?", [noteId]);
 
     if (!note.isDeleted) {
-        log.error(`Note ${noteId} is not deleted and thus cannot be undeleted.`);
+        log.error(`Note '${noteId}' is not deleted and thus cannot be undeleted.`);
         return;
     }
 
@@ -937,9 +887,7 @@ sqlInit.dbReady.then(() => {
 module.exports = {
     createNewNote,
     createNewNoteWithTarget,
-    updateNote,
-    deleteBranch,
-    deleteNote,
+    updateNoteContent,
     undeleteNote,
     protectNoteRecursively,
     scanForLinks,
@@ -949,5 +897,6 @@ module.exports = {
     triggerNoteTitleChanged,
     eraseDeletedNotesNow,
     eraseNotesWithDeleteId,
-    saveNoteRevision
+    saveNoteRevisionIfNeeded,
+    downloadImages
 };

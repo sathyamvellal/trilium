@@ -10,17 +10,23 @@ const log = require("../../services/log");
 
 let becca = null;
 
+/**
+ * Base class for all backend entities.
+ */
 class AbstractEntity {
+    /** @protected */
     beforeSaving() {
         this.generateIdIfNecessary();
     }
 
+    /** @protected */
     generateIdIfNecessary() {
         if (!this[this.constructor.primaryKeyName]) {
             this[this.constructor.primaryKeyName] = utils.newEntityId();
         }
     }
 
+    /** @protected */
     generateHash(isDeleted = false) {
         let contentToHash = "";
 
@@ -35,10 +41,12 @@ class AbstractEntity {
         return utils.hash(contentToHash).substr(0, 10);
     }
 
+    /** @protected */
     getUtcDateChanged() {
         return this.utcDateModified || this.utcDateCreated;
     }
 
+    /** @protected */
     get becca() {
         if (!becca) {
             becca = require('../becca');
@@ -47,6 +55,7 @@ class AbstractEntity {
         return becca;
     }
 
+    /** @protected */
     addEntityChange(isDeleted = false) {
         entityChangesService.addEntityChange({
             entityName: this.constructor.entityName,
@@ -58,10 +67,16 @@ class AbstractEntity {
         });
     }
 
+    /** @protected */
     getPojoToSave() {
         return this.getPojo();
     }
 
+    /**
+     * Saves entity - executes SQL, but doesn't commit the transaction on its own
+     *
+     * @returns {AbstractEntity}
+     */
     save() {
         const entityName = this.constructor.entityName;
         const primaryKeyName = this.constructor.primaryKeyName;
@@ -100,6 +115,13 @@ class AbstractEntity {
         return this;
     }
 
+    /**
+     * Mark the entity as (soft) deleted. It will be completely erased later.
+     *
+     * This is a low level method, for notes and branches use `note.deleteNote()` and 'branch.deleteBranch()` instead.
+     *
+     * @param [deleteId=null]
+     */
     markAsDeleted(deleteId = null) {
         const entityId = this[this.constructor.primaryKeyName];
         const entityName = this.constructor.entityName;

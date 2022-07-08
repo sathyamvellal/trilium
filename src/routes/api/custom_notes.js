@@ -14,8 +14,13 @@ function getMonthNote(req) {
     return customDateNoteService.getMonthNote(req.params.date, req.params.customRoot, null, req.query);
 }
 
+function getYearNote(req) {
+    return customDateNoteService.getYearNote(req.params.date, req.params.customRoot, null, req.query);
+}
+
 module.exports = {
     getDateNote,
     getWeekNote,
     getMonthNote,
+    getYearNote,
 };

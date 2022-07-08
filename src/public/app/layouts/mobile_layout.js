@@ -13,6 +13,8 @@ import CollapseTreeButton from "../widgets/mobile_widgets/global_buttons/collaps
 import ScrollToActiveNoteButton from "../widgets/mobile_widgets/global_buttons/scroll_to_active_note.js";
 import PluginButtonsButton from "../widgets/mobile_widgets/global_buttons/plugin_buttons.js";
 import GlobalActionsButton from "../widgets/mobile_widgets/global_buttons/global_actions.js";
+import ProtectedSessionPasswordDialog from "../widgets/dialogs/protected_session_password.js";
+import ConfirmDialog from "../widgets/dialogs/confirm.js";
 
 const MOBILE_CSS = `
 <style>
@@ -32,9 +34,6 @@ kbd {
     padding-left: 0.5em;
     padding-right: 0.5em;
     color: var(--main-text-color);
-}
-.quick-search {
-    margin: 55px 0px 0px 0px;
 }
 .quick-search .dropdown-menu {
     max-width: 350px;
@@ -106,7 +105,6 @@ export default class MobileLayout {
                 .css("max-height", "100%")
                 .css('padding-left', 0)
                 .css('contain', 'content')
-                // <<< Mine
                 .child(new FlexContainer('row')
                     .id('global-buttons')
                     .css('padding', '8px 16px 3px 0')
@@ -121,7 +119,7 @@ export default class MobileLayout {
                         .child(new CalendarWidget("bx-bug", "Bugs", "bugsUpdates", "week", "wednesday"))
                         .child(new CreateNoteIntoInboxButton())
                         .child(new CollapseTreeButton())
-                        .child(new ScrollToActiveNoteButton())
+                        // .child(new ScrollToActiveNoteButton())
                     )
                     .child(new FlexContainer('row')
                         .css('flex-shrink', '1')
@@ -160,6 +158,8 @@ export default class MobileLayout {
                                 .css('padding', '5px 20px 10px 0')
                         )
                 )
-            );
+            )
+            .child(new ProtectedSessionPasswordDialog())
+            .child(new ConfirmDialog());
     }
 }

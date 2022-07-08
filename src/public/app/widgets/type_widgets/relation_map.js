@@ -8,6 +8,7 @@ import TypeWidget from "./type_widget.js";
 import appContext from "../../services/app_context.js";
 import utils from "../../services/utils.js";
 import froca from "../../services/froca.js";
+import dialogService from "../../widgets/dialog.js";
 
 const uniDirectionalOverlays = [
     [ "Arrow", {
@@ -138,9 +139,9 @@ export default class RelationMapTypeWidget extends TypeWidget {
                 x: e.pageX,
                 y: e.pageY,
                 items: [
-                    {title: "Open in new tab", command: "openInNewTab", uiIcon: "empty"},
-                    {title: "Remove note", command: "remove", uiIcon: "trash"},
-                    {title: "Edit title", command: "editTitle", uiIcon: "pencil"},
+                    {title: "Open in new tab", command: "openInNewTab", uiIcon: "bx bx-empty"},
+                    {title: "Remove note", command: "remove", uiIcon: "bx bx-trash"},
+                    {title: "Edit title", command: "editTitle", uiIcon: "bx bx-pencil"},
                 ],
                 selectMenuItemHandler: ({command}) => this.contextMenuHandler(command, e.target)
             });
@@ -151,8 +152,7 @@ export default class RelationMapTypeWidget extends TypeWidget {
         this.clipboard = null;
 
         this.$createChildNote.on('click', async () => {
-            const promptDialog = await import('../../dialogs/prompt.js');
-            const title = await promptDialog.ask({ message: "Enter title of new note",  defaultValue: "new note" });
+            const title = await dialogService.prompt({ message: "Enter title of new note",  defaultValue: "new note" });
 
             if (!title.trim()) {
                 return;
@@ -196,15 +196,15 @@ export default class RelationMapTypeWidget extends TypeWidget {
             appContext.tabManager.openTabWithNoteWithHoisting(noteId);
         }
         else if (command === "remove") {
-            const confirmDialog = await import('../../dialogs/confirm.js');
+            const result = await dialogService.confirmDeleteNoteBoxWithNote($title.text());
 
-            if (!await confirmDialog.confirmDeleteNoteBoxWithNote($title.text())) {
+            if (!result.confirmed) {
                 return;
             }
 
             this.jsPlumbInstance.remove(this.noteIdToId(noteId));
 
-            if (confirmDialog.isDeleteNoteChecked()) {
+            if (result.isDeleteNoteChecked) {
                 const taskId = utils.randomString(10);
 
                 await server.remove(`notes/${noteId}?taskId=${taskId}&last=true`);
@@ -217,8 +217,7 @@ export default class RelationMapTypeWidget extends TypeWidget {
             this.saveData();
         }
         else if (command === "editTitle") {
-            const promptDialog = await import("../../dialogs/prompt.js");
-            const title = await promptDialog.ask({
+            const title = await dialogService.prompt({
                 title: "Rename note",
                 message: "Enter new note title:",
                 defaultValue: $title.text()
@@ -228,7 +227,7 @@ export default class RelationMapTypeWidget extends TypeWidget {
                 return;
             }
 
-            await server.put(`notes/${noteId}/change-title`, { title });
+            await server.put(`notes/${noteId}/title`, { title });
 
             $title.text(title);
         }
@@ -446,12 +445,10 @@ export default class RelationMapTypeWidget extends TypeWidget {
                 contextMenu.show({
                     x: event.pageX,
                     y: event.pageY,
-                    items: [ {title: "Remove relation", command: "remove", uiIcon: "trash"} ],
+                    items: [ {title: "Remove relation", command: "remove", uiIcon: "bx bx-trash"} ],
                     selectMenuItemHandler: async ({command}) => {
                         if (command === 'remove') {
-                            const confirmDialog = await import('../../dialogs/confirm.js');
-
-                            if (!await confirmDialog.confirm("Are you sure you want to remove the relation?")) {
+                            if (!await dialogService.confirm("Are you sure you want to remove the relation?")) {
                                 return;
                             }
 
@@ -473,8 +470,7 @@ export default class RelationMapTypeWidget extends TypeWidget {
             return;
         }
 
-        const promptDialog = await import("../../dialogs/prompt.js");
-        let name = await promptDialog.ask({
+        let name = await dialogService.prompt({
             message: "Specify new relation name (allowed characters: alphanumeric, colon and underscore):",
             shown: ({ $answer }) => {
                 $answer.on('keyup', () => {
@@ -509,8 +505,7 @@ export default class RelationMapTypeWidget extends TypeWidget {
             && rel.name === name);
 
         if (relationExists) {
-            const infoDialog = await import('../../dialogs/info.js');
-            await infoDialog.info("Connection '" + name + "' between these notes already exists.");
+            await dialogService.info(`Connection '${name}' between these notes already exists.`);
 
             this.jsPlumbInstance.deleteConnection(connection);
 

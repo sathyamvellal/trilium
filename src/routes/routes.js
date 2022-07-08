@@ -31,6 +31,7 @@ const scriptRoute = require('./api/script');
 const senderRoute = require('./api/sender');
 const filesRoute = require('./api/files');
 const searchRoute = require('./api/search');
+const bulkActionRoute = require('./api/bulk_action');
 const specialNotesRoute = require('./api/special_notes');
 const customNotesRoute = require('./api/custom_notes');
 const noteMapRoute = require('./api/note_map');
@@ -43,6 +44,7 @@ const fontsRoute = require('./api/fonts');
 const etapiTokensApiRoutes = require('./api/etapi_tokens');
 const shareRoutes = require('../share/routes');
 const etapiAuthRoutes = require('../etapi/auth');
+const etapiAppInfoRoutes = require('../etapi/app_info');
 const etapiAttributeRoutes = require('../etapi/attributes');
 const etapiBranchRoutes = require('../etapi/branches');
 const etapiNoteRoutes = require('../etapi/notes');
@@ -120,6 +122,10 @@ function apiResultHandler(req, res, result) {
 
 function send(res, statusCode, response) {
     if (typeof response === 'string') {
+        if (statusCode >= 400) {
+            res.setHeader("Content-Type", "text/plain");
+        }
+
         res.status(statusCode).send(response);
 
         return response.length;
@@ -167,7 +173,9 @@ function route(method, path, middleware, routeHandler, resultHandler, transactio
                         .catch(e => {
                             log.error(`${method} ${path} threw exception: ` + e.stack);
 
-                            res.status(500).send(e.message);
+                            res.setHeader("Content-Type", "text/plain")
+                                .status(500)
+                                .send(e.message);
                         });
                 }
                 else {
@@ -180,7 +188,9 @@ function route(method, path, middleware, routeHandler, resultHandler, transactio
         catch (e) {
             log.error(`${method} ${path} threw exception: ` + e.stack);
 
-            res.status(500).send(e.message);
+            res.setHeader("Content-Type", "text/plain")
+                .status(500)
+                .send(e.message);
         }
     });
 }
@@ -217,7 +227,7 @@ function register(app) {
     apiRoute(GET, '/api/autocomplete', autocompleteApiRoute.getAutocomplete);
 
     apiRoute(GET, '/api/notes/:noteId', notesApiRoute.getNote);
-    apiRoute(PUT, '/api/notes/:noteId', notesApiRoute.updateNote);
+    apiRoute(PUT, '/api/notes/:noteId/content', notesApiRoute.updateNoteContent);
     apiRoute(DELETE, '/api/notes/:noteId', notesApiRoute.deleteNote);
     apiRoute(PUT, '/api/notes/:noteId/undelete', notesApiRoute.undeleteNote);
     apiRoute(POST, '/api/notes/:parentNoteId/children', notesApiRoute.createNote);
@@ -233,7 +243,7 @@ function register(app) {
     apiRoute(GET, '/api/notes/:noteId/backlink-count', notesApiRoute.getBacklinkCount);
     apiRoute(POST, '/api/notes/relation-map', notesApiRoute.getRelationMap);
     apiRoute(POST, '/api/notes/erase-deleted-notes-now', notesApiRoute.eraseDeletedNotesNow);
-    apiRoute(PUT, '/api/notes/:noteId/change-title', notesApiRoute.changeTitle);
+    apiRoute(PUT, '/api/notes/:noteId/title', notesApiRoute.changeTitle);
     apiRoute(POST, '/api/notes/:noteId/duplicate/:parentNoteId', notesApiRoute.duplicateSubtree);
     apiRoute(POST, '/api/notes/:noteId/upload-modified-file', notesApiRoute.uploadModifiedFile);
 
@@ -290,6 +300,7 @@ function register(app) {
     apiRoute(GET, '/api/custom-notes/:customRoot/month/:date', customNotesRoute.getMonthNote);
     apiRoute(GET, '/api/custom-notes/:customRoot/year/:date', customNotesRoute.getYearNote);
 
+    // :filename is not used by trilium, but instead used for "save as" to assign a human readable filename
     route(GET, '/api/images/:noteId/:filename', [auth.checkApiAuthOrElectron], imageRoute.returnImage);
     route(POST, '/api/images', [auth.checkApiAuthOrElectron, uploadMiddleware, csrfMiddleware], imageRoute.uploadImage, apiResultHandler);
     route(PUT, '/api/images/:noteId', [auth.checkApiAuthOrElectron, uploadMiddleware, csrfMiddleware], imageRoute.updateImage, apiResultHandler);
@@ -321,6 +332,9 @@ function register(app) {
     apiRoute(POST, '/api/recent-notes', recentNotesRoute.addRecentNote);
     apiRoute(GET, '/api/app-info', appInfoRoute.getAppInfo);
 
+    // docker health check
+    route(GET, '/api/health-check', [], () => ({"status": "ok"}), apiResultHandler);
+
     // group of services below are meant to be executed from outside
     route(GET, '/api/setup/status', [], setupApiRoute.getStatus, apiResultHandler);
     route(POST, '/api/setup/new-document', [auth.checkAppNotInitialized], setupApiRoute.setupNewDocument, apiResultHandler, false);
@@ -330,7 +344,7 @@ function register(app) {
 
     apiRoute(GET, '/api/sql/schema', sqlRoute.getSchema);
     apiRoute(POST, '/api/sql/execute/:noteId', sqlRoute.execute);
-    route(POST, '/api/database/anonymize', [auth.checkApiAuthOrElectron, csrfMiddleware], databaseRoute.anonymize, apiResultHandler, false);
+    route(POST, '/api/database/anonymize/:type', [auth.checkApiAuthOrElectron, csrfMiddleware], databaseRoute.anonymize, apiResultHandler, false);
 
     // backup requires execution outside of transaction
     route(POST, '/api/database/backup-database', [auth.checkApiAuthOrElectron, csrfMiddleware], databaseRoute.backupDatabase, apiResultHandler, false);
@@ -359,10 +373,15 @@ function register(app) {
     apiRoute(POST, '/api/search-and-execute-note/:noteId', searchRoute.searchAndExecute);
     apiRoute(POST, '/api/search-related', searchRoute.getRelatedNotes);
     apiRoute(GET, '/api/search/:searchString', searchRoute.search);
+    apiRoute(GET, '/api/search-templates', searchRoute.searchTemplates);
+
+    apiRoute(POST, '/api/bulk-action/execute', bulkActionRoute.execute);
+    apiRoute(POST, '/api/bulk-action/affected-notes', bulkActionRoute.getAffectedNoteCount);
 
     route(POST, '/api/login/sync', [], loginApiRoute.loginSync, apiResultHandler);
     // this is for entering protected mode so user has to be already logged-in (that's the reason we don't require username)
     apiRoute(POST, '/api/login/protected', loginApiRoute.loginToProtectedSession);
+    apiRoute(POST, '/api/login/protected/touch', loginApiRoute.touchProtectedSession);
     apiRoute(POST, '/api/logout/protected', loginApiRoute.logoutFromProtectedSession);
 
     route(POST, '/api/login/token', [], loginApiRoute.token, apiResultHandler);
@@ -397,6 +416,7 @@ function register(app) {
     shareRoutes.register(router);
 
     etapiAuthRoutes.register(router);
+    etapiAppInfoRoutes.register(router);
     etapiAttributeRoutes.register(router);
     etapiBranchRoutes.register(router);
     etapiNoteRoutes.register(router);

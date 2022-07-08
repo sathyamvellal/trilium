@@ -62,7 +62,6 @@ function getNoteEndingith(parentNoteId, endsWith) {
 
 /** @return {Note} */
 function getRootNote(customRootLabel) {
-    console.log("customRootLabel:", customRootLabel);
     let rootNote = attributeService.getNoteWithLabel(customRootLabel);
 
     if (!rootNote) {
@@ -85,7 +84,7 @@ function getRootNote(customRootLabel) {
 }
 
 /** @return {Note} */
-function getYearNote(dateStr, rootNoteLabel, rootNote) {
+function getYearNote(dateStr, rootNoteLabel, rootNote, params) {
     if (!rootNote) {
         rootNote = getRootNote(rootNoteLabel);
     }
@@ -93,7 +92,6 @@ function getYearNote(dateStr, rootNoteLabel, rootNote) {
     const yearStr = dateStr.substr(0, 4);
 
     let yearNote = attributeService.getNoteWithLabel(getYearLabel(rootNoteLabel), yearStr);
-        // || getNoteStartingWith(rootNote.noteId, yearStr);
 
     if (yearNote) {
         return yearNote;
@@ -117,7 +115,6 @@ function getYearNote(dateStr, rootNoteLabel, rootNote) {
 
 function getMonthNoteTitle(monthNoteTitlePattern, rootNote, monthNumber, dateObj) {
     const pattern = monthNoteTitlePattern || rootNote.getOwnedLabelValue("monthPattern") || "{monthNumberPadded} - {month}";
-    console.log("--> pattern", pattern);
     const monthName = MONTHS[dateObj.getMonth()];
 
     return pattern
@@ -142,14 +139,7 @@ function getMonthNote(dateStr, rootNoteLabel, rootNote, params) {
 
     const yearNote = getYearNote(dateStr, rootNoteLabel, rootNote, params);
 
-    // monthNote = getNoteStartingWith(yearNote.noteId, monthNumber);
-
-    // if (monthNote) {
-    //     return monthNote;
-    // }
-
     const dateObj = dateUtils.parseLocalDate(dateStr);
-
     const noteTitle = getMonthNoteTitle(params.monthNoteTitlePattern, rootNote, monthNumber, dateObj);
 
     sql.transactional(() => {
@@ -207,11 +197,6 @@ function getWeekNoteTitle(weekNoteTitlePattern, rootNote, dayNumber, dateObj) {
 
 /** @return {Note} */
 function getWeekNote(dateStr, rootNoteLabel, rootNote, params) {
-    console.log("============ GET WEEK NOTE ============");
-    console.log("dateStr (init)", dateStr);
-    console.log("rootNoteLabel (init)", rootNoteLabel);
-    console.log("rootNote (init)", rootNote);
-    console.log("params (init)", params);
     const dateObj = getStartDateOfTheWeek(dateUtils.parseLocalDate(dateStr), params.startOfTheWeek);
     dateStr = dateUtils.utcDateStr(dateObj).substr(0, 10);
     console.log("dateObj (getStartDateOfTheWeek)", dateObj);
@@ -230,19 +215,10 @@ function getWeekNote(dateStr, rootNoteLabel, rootNote, params) {
     }
 
     const monthNote = getMonthNote(dateStr, rootNoteLabel, rootNote, params);
-    console.log("monthNote (getMonthNote)", monthNote);
     const dayNumber = dateStr.substr(8, 2);
     console.log("dayNumber (getMonthNote)", dayNumber);
 
-    // weekNote = getNoteEndingith(monthNote.noteId, dayNumber);
-    // console.log("weekNote (getNoteEndingWith)", weekNote);
-
-    // if (weekNote) {
-    //     return weekNote;
-    // }
-
     const noteTitle = getWeekNoteTitle(params.weekNoteTitlePattern, rootNote, dayNumber, dateObj);
-    console.log("noteTitle (getWeekNoteTitle)", noteTitle);
 
     sql.transactional(() => {
         weekNote = createNote(monthNote, noteTitle);
@@ -279,8 +255,6 @@ function getDateNoteTitle(dateNoteTitlePattern, rootNote, dayNumber, dateObj) {
 
 /** @return {Note} */
 function getDateNote(dateStr, rootNoteLabel, rootNote, params) {
-    console.log("rootNoteLabel:", rootNoteLabel);
-    console.log("rootNote:", rootNote);
     let dateNote = attributeService.getNoteWithLabel(getDateLabel(rootNoteLabel), dateStr);
 
     if (dateNote) {
@@ -291,14 +265,7 @@ function getDateNote(dateStr, rootNoteLabel, rootNote, params) {
     const weekNote = getWeekNote(dateStr, rootNoteLabel, rootNote, params);
     const dayNumber = dateStr.substr(8, 2);
 
-    // dateNote = getNoteStartingWith(weekNote.noteId, dayNumber);
-
-    // if (dateNote) {
-    //     return dateNote;
-    // }
-
     const dateObj = dateUtils.parseLocalDate(dateStr);
-
     const noteTitle = getDateNoteTitle(params.dateNoteTitlePattern, rootNote, dayNumber, dateObj);
 
     sql.transactional(() => {

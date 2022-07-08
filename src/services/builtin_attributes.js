@@ -46,6 +46,12 @@ module.exports = [
     { type: 'label', name: 'shareAlias' },
     { type: 'label', name: 'shareOmitDefaultCss' },
     { type: 'label', name: 'shareRoot' },
+    { type: 'label', name: 'shareRaw' },
+    { type: 'label', name: 'shareDisallowRobotIndexing' },
+    { type: 'label', name: 'displayRelations' },
+    { type: 'label', name: 'hideRelations' },
+    { type: 'label', name: 'titleTemplate', isDangerous: true },
+    { type: 'label', name: 'template' },
 
     // relation names
     { type: 'relation', name: 'internalLink' },
@@ -55,6 +61,9 @@ module.exports = [
     { type: 'relation', name: 'runOnNoteCreation', isDangerous: true },
     { type: 'relation', name: 'runOnNoteTitleChange', isDangerous: true },
     { type: 'relation', name: 'runOnNoteChange', isDangerous: true },
+    { type: 'relation', name: 'runOnNoteDeletion', isDangerous: true },
+    { type: 'relation', name: 'runOnBranchCreation', isDangerous: true },
+    { type: 'relation', name: 'runOnBranchDeletion', isDangerous: true },
     { type: 'relation', name: 'runOnChildNoteCreation', isDangerous: true },
     { type: 'relation', name: 'runOnAttributeCreation', isDangerous: true },
     { type: 'relation', name: 'runOnAttributeChange', isDangerous: true },

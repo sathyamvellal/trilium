@@ -22,8 +22,7 @@ async function mouseEnterHandler() {
     const $link = $(this);
 
     if ($link.hasClass("no-tooltip-preview")
-        || $link.hasClass("disabled")
-        || $link.attr("data-action") === 'note-revision') {
+        || $link.hasClass("disabled")) {
         return;
     }
 
@@ -63,6 +62,7 @@ async function mouseEnterHandler() {
             placement: 'auto',
             trigger: 'manual',
             boundary: 'window',
+            offset: "0, 20", // workaround for https://github.com/zadam/trilium/issues/2794
             title: html,
             html: true,
             template: '<div class="tooltip note-tooltip" role="tooltip"><div class="arrow"></div><div class="tooltip-inner"></div></div>',
