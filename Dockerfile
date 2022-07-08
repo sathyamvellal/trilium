@@ -22,7 +22,7 @@ RUN set -x \
     && apk del .build-dependencies
 
 # Some setup tools need to be kept
-RUN apk add --no-cache su-exec
+RUN apk add --no-cache su-exec shadow
 
 # Bundle app source
 COPY . .
@@ -33,3 +33,5 @@ RUN adduser -s /bin/false node; exit 0
 # Start the application
 EXPOSE 8080
 CMD [ "./start-docker.sh" ]
+
+HEALTHCHECK CMD sh DockerHealthcheck.sh

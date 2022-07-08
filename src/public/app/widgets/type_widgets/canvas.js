@@ -2,13 +2,13 @@ import libraryLoader from "../../services/library_loader.js";
 import TypeWidget from "./type_widget.js";
 import utils from '../../services/utils.js';
 import froca from "../../services/froca.js";
-import debounce from "../../../../../libraries/lodash.debounce.js";
+import debounce from "../../services/debounce.js";
 
 const {sleep} = utils;
 
 const TPL = `
     <div class="canvas-widget note-detail-canvas note-detail-printable note-detail">
-        <style type="text/css">
+        <style>
         .excalidraw .App-menu_top .buttonList {
             display: flex;
         }
@@ -336,6 +336,10 @@ export default class ExcalidrawTypeWidget extends TypeWidget {
             setDimensions(dimensions);
 
             const onResize = () => {
+                if (this.note?.type !== 'canvas') {
+                    return;
+                }
+
                 const dimensions = {
                     width: excalidrawWrapperRef.current.getBoundingClientRect().width,
                     height: excalidrawWrapperRef.current.getBoundingClientRect().height

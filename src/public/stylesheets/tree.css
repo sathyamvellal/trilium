@@ -170,7 +170,6 @@ span.fancytree-active .fancytree-title {
 }
 
 span.fancytree-selected {
-    color: var(--hover-item-text-color) !important;
     border-color: var(--main-border-color) !important;
     border-radius: 5px;
 }
@@ -178,6 +177,12 @@ span.fancytree-selected {
 span.fancytree-selected .fancytree-title {
     text-decoration: underline;
     font-style: italic;
+}
+
+span.fancytree-selected .fancytree-custom-icon::before {
+    content: "\eb43";
+    border: 1px solid var(--main-border-color);
+    border-radius: 3px;
 }
 
 span.fancytree-node:hover {

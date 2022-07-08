@@ -53,11 +53,11 @@ function createNote(req) {
     };
 }
 
-function updateNote(req) {
-    const note = req.body;
-    const noteId = req.params.noteId;
+function updateNoteContent(req) {
+    const {content} = req.body;
+    const {noteId} = req.params;
 
-    return noteService.updateNote(noteId, note);
+    return noteService.updateNoteContent(noteId, content);
 }
 
 function deleteNote(req) {
@@ -94,13 +94,13 @@ function undeleteNote(req) {
 
 function sortChildNotes(req) {
     const noteId = req.params.noteId;
-    const {sortBy, sortDirection} = req.body;
+    const {sortBy, sortDirection, foldersFirst} = req.body;
 
-    log.info(`Sorting '${noteId}' children with ${sortBy} ${sortDirection}`);
+    log.info(`Sorting '${noteId}' children with ${sortBy} ${sortDirection}, foldersFirst=${foldersFirst}`);
 
     const reverse = sortDirection === 'desc';
 
-    treeService.sortNotes(noteId, sortBy, reverse);
+    treeService.sortNotes(noteId, sortBy, reverse, foldersFirst);
 }
 
 function protectNote(req) {
@@ -206,7 +206,7 @@ function changeTitle(req) {
     const noteTitleChanged = note.title !== title;
 
     if (noteTitleChanged) {
-        noteService.saveNoteRevision(note);
+        noteService.saveNoteRevisionIfNeeded(note);
     }
 
     note.title = title;
@@ -294,7 +294,7 @@ function uploadModifiedFile(req) {
 
     log.info(`Updating note '${noteId}' with content from ${filePath}`);
 
-    noteRevisionService.createNoteRevision(note);
+    note.saveNoteRevision();
 
     const fileContent = fs.readFileSync(filePath);
 
@@ -322,7 +322,7 @@ function getBacklinkCount(req) {
 
 module.exports = {
     getNote,
-    updateNote,
+    updateNoteContent,
     deleteNote,
     undeleteNote,
     createNote,

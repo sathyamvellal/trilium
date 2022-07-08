@@ -49,6 +49,32 @@ import NoteWrapperWidget from "../widgets/note_wrapper.js";
 import BacklinksWidget from "../widgets/backlinks.js";
 import SharedInfoWidget from "../widgets/shared_info.js";
 import FindWidget from "../widgets/find.js";
+import TocWidget from "../widgets/toc.js";
+import BulkActionsDialog from "../widgets/dialogs/bulk_actions.js";
+import AboutDialog from "../widgets/dialogs/about.js";
+import NoteSourceDialog from "../widgets/dialogs/note_source.js";
+import HelpDialog from "../widgets/dialogs/help.js";
+import RecentChangesDialog from "../widgets/dialogs/recent_changes.js";
+import BackendLogDialog from "../widgets/dialogs/backend_log.js";
+import BranchPrefixDialog from "../widgets/dialogs/branch_prefix.js";
+import SortChildNotesDialog from "../widgets/dialogs/sort_child_notes.js";
+import PasswordNoteSetDialog from "../widgets/dialogs/password_not_set.js";
+import IncludeNoteDialog from "../widgets/dialogs/include_note.js";
+import NoteTypeChooserDialog from "../widgets/dialogs/note_type_chooser.js";
+import JumpToNoteDialog from "../widgets/dialogs/jump_to_note.js";
+import AddLinkDialog from "../widgets/dialogs/add_link.js";
+import CloneToDialog from "../widgets/dialogs/clone_to.js";
+import MoveToDialog from "../widgets/dialogs/move_to.js";
+import ImportDialog from "../widgets/dialogs/import.js";
+import ExportDialog from "../widgets/dialogs/export.js";
+import MarkdownImportDialog from "../widgets/dialogs/markdown_import.js";
+import ProtectedSessionPasswordDialog from "../widgets/dialogs/protected_session_password.js";
+import NoteRevisionsDialog from "../widgets/dialogs/note_revisions.js";
+import DeleteNotesDialog from "../widgets/dialogs/delete_notes.js";
+import InfoDialog from "../widgets/dialogs/info.js";
+import ConfirmDialog from "../widgets/dialogs/confirm.js";
+import PromptDialog from "../widgets/dialogs/prompt.js";
+import OptionsDialog from "../widgets/dialogs/options.js";
 
 export default class DesktopLayout {
     constructor(customWidgets) {
@@ -171,9 +197,35 @@ export default class DesktopLayout {
                         .child(...this.customWidgets.get('center-pane'))
                     )
                     .child(new RightPaneContainer()
+                        .child(new TocWidget())
                         .child(...this.customWidgets.get('right-pane'))
                     )
                 )
-            );
+            )
+            .child(new BulkActionsDialog())
+            .child(new AboutDialog())
+            .child(new NoteSourceDialog())
+            .child(new HelpDialog())
+            .child(new RecentChangesDialog())
+            .child(new BackendLogDialog())
+            .child(new BranchPrefixDialog())
+            .child(new SortChildNotesDialog())
+            .child(new PasswordNoteSetDialog())
+            .child(new IncludeNoteDialog())
+            .child(new NoteTypeChooserDialog())
+            .child(new JumpToNoteDialog())
+            .child(new AddLinkDialog())
+            .child(new CloneToDialog())
+            .child(new MoveToDialog())
+            .child(new ImportDialog())
+            .child(new ExportDialog())
+            .child(new MarkdownImportDialog())
+            .child(new ProtectedSessionPasswordDialog())
+            .child(new NoteRevisionsDialog())
+            .child(new DeleteNotesDialog())
+            .child(new InfoDialog())
+            .child(new ConfirmDialog())
+            .child(new PromptDialog())
+            .child(new OptionsDialog());
     }
 }

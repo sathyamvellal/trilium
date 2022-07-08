@@ -13,6 +13,8 @@ import CollapseTreeButton from "../widgets/mobile_widgets/global_buttons/collaps
 import ScrollToActiveNoteButton from "../widgets/mobile_widgets/global_buttons/scroll_to_active_note.js";
 import PluginButtonsButton from "../widgets/mobile_widgets/global_buttons/plugin_buttons.js";
 import GlobalActionsButton from "../widgets/mobile_widgets/global_buttons/global_actions.js";
+import ProtectedSessionPasswordDialog from "../widgets/dialogs/protected_session_password.js";
+import ConfirmDialog from "../widgets/dialogs/confirm.js";
 
 const MOBILE_CSS = `
 <style>
@@ -153,6 +155,8 @@ export default class MobileLayout {
                                 .css('padding', '5px 20px 10px 0')
                         )
                 )
-            );
+            )
+            .child(new ProtectedSessionPasswordDialog())
+            .child(new ConfirmDialog());
     }
 }

@@ -78,14 +78,23 @@ function findResultsWithExpression(expression, searchContext) {
 
     const searchResults = noteSet.notes
         .map(note => {
+            if (note.isDeleted) {
+                return null;
+            }
+
             const notePathArray = executionContext.noteIdToNotePath[note.noteId] || beccaService.getSomePath(note);
 
             if (!notePathArray) {
                 throw new Error(`Can't find note path for note ${JSON.stringify(note.getPojo())}`);
             }
 
+            if (notePathArray.includes("hidden")) {
+                return null;
+            }
+
             return new SearchResult(notePathArray);
-        });
+        })
+        .filter(note => !!note);
 
     for (const res of searchResults) {
         res.computeScore(searchContext.highlightedTokens);
@@ -129,7 +138,7 @@ function parseQueryToExpression(query, searchContext) {
             structuredExpressionTokens,
             expression
         };
-        
+
         log.info("Search debug: " + JSON.stringify(searchContext.debugInfo, null, 4));
     }
 
@@ -171,8 +180,7 @@ function searchNotesForAutocomplete(query) {
         fuzzyAttributeSearch: true
     });
 
-    const allSearchResults = findResultsWithQuery(query, searchContext)
-        .filter(res => !res.notePathArray.includes("hidden"));
+    const allSearchResults = findResultsWithQuery(query, searchContext);
 
     const trimmed = allSearchResults.slice(0, 200);
 
