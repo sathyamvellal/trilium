@@ -5,6 +5,7 @@ import customNotesService from "../../services/custom_notes.js";
 import server from "../../services/server.js";
 import appContext from "../../services/app_context.js";
 import RightDropdownButtonWidget from "./right_dropdown_button.js";
+import toastService from "../../services/toast.js";
 
 const DROPDOWN_TPL = `
 <div class="calendar-dropdown-widget">
@@ -68,7 +69,7 @@ export default class CalendarWidget extends RightDropdownButtonWidget {
                 this.hideDropdown();
             }
             else {
-                alert("Cannot find day note");
+                toastService.showError("Cannot find day note");
             }
         });
     }

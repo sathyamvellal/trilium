@@ -15,6 +15,7 @@ import PluginButtonsButton from "../widgets/mobile_widgets/global_buttons/plugin
 import GlobalActionsButton from "../widgets/mobile_widgets/global_buttons/global_actions.js";
 import ProtectedSessionPasswordDialog from "../widgets/dialogs/protected_session_password.js";
 import ConfirmDialog from "../widgets/dialogs/confirm.js";
+import FilePropertiesWidget from "../widgets/ribbon_widgets/file_properties.js";
 
 const MOBILE_CSS = `
 <style>
@@ -153,7 +154,7 @@ export default class MobileLayout {
                         .child(
                             new NoteDetailWidget()
                                 .css('padding', '5px 20px 10px 0')
-                        )
+                        ).child(new FilePropertiesWidget().css('font-size','smaller'))
                 )
             )
             .child(new ProtectedSessionPasswordDialog())

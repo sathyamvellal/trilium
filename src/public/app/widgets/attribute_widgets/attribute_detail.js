@@ -189,6 +189,8 @@ const ATTR_HELP = {
         "runAtHour": "On which hour should this run. Should be used together with <code>#run=hourly</code>. Can be defined multiple times for more runs during the day.",
         "disableInclusion": "scripts with this label won't be included into parent script execution.",
         "sorted": "keeps child notes sorted by title alphabetically",
+        "sortDirection": "ASC (the default) or DESC",
+        "sortFoldersFirst": "Folders (notes with children) should be sorted on top",
         "top": "keep given note on top in its parent (applies only on sorted parents)",
         "hidePromotedAttributes": "Hide promoted attributes on this note",
         "readOnly": "editor is in read only mode. Works only for text and code notes.",
@@ -204,6 +206,8 @@ const ATTR_HELP = {
         "workspace": "marks this note as a workspace which allows easy hoisting",
         "workspaceIconClass": "defines box icon CSS class which will be used in tab when hoisted to this note",
         "workspaceTabBackgroundColor": "CSS color used in the note tab when hoisted to this note",
+        "workspaceCalendarRoot": "Defines per-workspace calendar root",
+        "workspaceTemplate": "This note will appear in the selection of available template when creating new note, but only when hoisted into a workspace containing this template",
         "searchHome": "new search notes will be created as children of this note",
         "hoistedSearchHome": "new search notes will be created as children of this note when hoisted to some ancestor of this note",
         "inbox": "default inbox location for new notes",
@@ -215,8 +219,10 @@ const ATTR_HELP = {
         "shareAlias": "define an alias using which the note will be available under https://your_trilium_host/share/[your_alias]",
         "shareOmitDefaultCss": "default share page CSS will be omitted. Use when you make extensive styling changes.",
         "shareRoot": "marks note which is served on /share root.",
+        "shareDescription": "define text to be added to the HTML meta tag for description",
         "shareRaw": "note will be served in its raw format, without HTML wrapper",
         "shareDisallowRobotIndexing": `will forbid robot indexing of this note via <code>X-Robots-Tag: noindex</code> header`,
+        "shareCredentials": "require credentials to access this shared note. Value is expected to be in format 'username:password'. Don't forget to make this inheritable to apply to child-notes/images.",
         "displayRelations": "comma delimited names of relations which should be displayed. All other ones will be hidden.",
         "hideRelations": "comma delimited names of relations which should be hidden. All other ones will be displayed.",
         "titleTemplate": `default title of notes created as children of this note. The value is evaluated as JavaScript string 
@@ -227,7 +233,9 @@ const ATTR_HELP = {
                             <li><code>Log for \${now.format('YYYY-MM-DD HH:mm:ss')}</code></li>
                         </ul>
                         
-                        See <a href="https://github.com/zadam/trilium/wiki/Default-note-title">wiki with details</a>, API docs for <a href="https://zadam.github.io/trilium/backend_api/Note.html">parentNote</a> and <a href="https://day.js.org/docs/en/display/format">now</a> for details.`
+                        See <a href="https://github.com/zadam/trilium/wiki/Default-note-title">wiki with details</a>, API docs for <a href="https://zadam.github.io/trilium/backend_api/Note.html">parentNote</a> and <a href="https://day.js.org/docs/en/display/format">now</a> for details.`,
+        "template": "This note will appear in the selection of available template when creating new note",
+        "toc": "<code>#toc</code> or <code>#toc=show</code> will force the Table of Contents to be shown, <code>#toc=hide</code> will force hiding it. If the label doesn't exist, the global setting is observed"
     },
     "relation": {
         "runOnNoteCreation": "executes when note is created on backend",
