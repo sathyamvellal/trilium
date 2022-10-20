@@ -68,8 +68,13 @@ function register(router) {
 
     router.get('/share/:shareId', (req, res, next) => {
         shacaLoader.ensureLoad();
+        const aliases = require('./aliases');
 
-        const {shareId} = req.params;
+        var {shareId} = req.params;
+
+        if (shareId in aliases) {
+            shareId = aliases[shareId];
+        }
 
         const note = shaca.aliasToNote[shareId] || shaca.notes[shareId];
 

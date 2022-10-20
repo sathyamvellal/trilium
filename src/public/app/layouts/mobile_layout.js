@@ -115,7 +115,7 @@ export default class MobileLayout {
                         .css('justify-content', 'space-around')
                         .css('width', '70%')
                         .child(new CalendarWidget("bx-notepad", "Logs", "logs", "week"))
-                        .child(new CalendarWidget("bx-history", "Status", "streamingCoreStatus", "week", "wednesday"))
+                        .child(new CalendarWidget("bx-history", "Status", "updates", "week", "wednesday"))
                         .child(new CalendarWidget("bx-bug", "Bugs", "bugsUpdates", "week", "wednesday"))
                         .child(new CreateNoteIntoInboxButton())
                         .child(new CollapseTreeButton())

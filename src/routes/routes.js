@@ -3,6 +3,7 @@
 const setupRoute = require('./setup');
 const loginRoute = require('./login');
 const indexRoute = require('./index');
+const redirectRoutes = require('./redirect');
 const utils = require('../services/utils');
 const multer = require('multer')();
 
@@ -414,6 +415,7 @@ function register(app) {
     apiRoute(DELETE, '/api/etapi-tokens/:etapiTokenId', etapiTokensApiRoutes.deleteToken);
 
     shareRoutes.register(router);
+    redirectRoutes.register(router);
 
     etapiAuthRoutes.register(router);
     etapiAppInfoRoutes.register(router);
