@@ -46,7 +46,7 @@ import OpenNoteButtonWidget from "../widgets/buttons/open_note_button_widget.js"
 import MermaidWidget from "../widgets/mermaid.js";
 import BookmarkButtons from "../widgets/bookmark_buttons.js";
 import NoteWrapperWidget from "../widgets/note_wrapper.js";
-import BacklinksWidget from "../widgets/backlinks.js";
+import BacklinksWidget from "../widgets/floating_buttons/zpetne_odkazy.js";
 import SharedInfoWidget from "../widgets/shared_info.js";
 import FindWidget from "../widgets/find.js";
 import TocWidget from "../widgets/toc.js";
@@ -75,6 +75,12 @@ import InfoDialog from "../widgets/dialogs/info.js";
 import ConfirmDialog from "../widgets/dialogs/confirm.js";
 import PromptDialog from "../widgets/dialogs/prompt.js";
 import OptionsDialog from "../widgets/dialogs/options.js";
+import FloatingButtons from "../widgets/floating_buttons/floating_buttons.js";
+import RelationMapButtons from "../widgets/floating_buttons/relation_map_buttons.js";
+import MermaidExportButton from "../widgets/floating_buttons/mermaid_export_button.js";
+import EditableCodeButtonsWidget from "../widgets/type_widgets/editable_code_buttons.js";
+import ApiLogWidget from "../widgets/api_log.js";
+import HideFloatingButtonsButton from "../widgets/floating_buttons/hide_floating_buttons_button.js";
 
 export default class DesktopLayout {
     constructor(customWidgets) {
@@ -180,7 +186,12 @@ export default class DesktopLayout {
                                 )
                                 .child(new SharedInfoWidget())
                                 .child(new NoteUpdateStatusWidget())
-                                .child(new BacklinksWidget())
+                                .child(new FloatingButtons()
+                                    .child(new RelationMapButtons())
+                                    .child(new MermaidExportButton())
+                                    .child(new BacklinksWidget())
+                                    .child(new HideFloatingButtonsButton())
+                                )
                                 .child(new MermaidWidget())
                                 .child(
                                     new ScrollingContainer()
@@ -191,6 +202,8 @@ export default class DesktopLayout {
                                         .child(new SearchResultWidget())
                                         .child(new SqlResultWidget())
                                 )
+                                .child(new EditableCodeButtonsWidget())
+                                .child(new ApiLogWidget())
                                 .child(new FindWidget())
                                 .child(...this.customWidgets.get('node-detail-pane'))
                         )

@@ -16,6 +16,7 @@
 
 import attributeService from "../services/attributes.js";
 import CollapsibleWidget from "./collapsible_widget.js";
+import options from "../services/options.js";
 
 const TPL = `<div class="toc-widget">
     <style>
@@ -67,37 +68,13 @@ function findHeadingNodeByIndex(parent, headingIndex) {
     return headingNode;
 }
 
-function findHeadingElementByIndex(parent, headingIndex) {
-    let headingElement = null;
-    for (let i = 0; i < parent.children.length; ++i) {
-        const child = parent.children[i];
-        // Headings appear as flattened top level children in the DOM named as
-        // "H" plus the level, eg "H2", "H3", "H2", etc and not nested wrt the
-        // heading level. If a heading node is found, decrement the headingIndex
-        // until zero is reached
-
-        if (child.tagName.match(/H\d+/i) !== null) {
-            if (headingIndex === 0) {
-                headingElement = child;
-                break;
-            }
-            headingIndex--;
-        }
-    }
-    return headingElement;
-}
-
-const MIN_HEADING_COUNT = 3;
-
 export default class TocWidget extends CollapsibleWidget {
     get widgetTitle() {
         return "Table of Contents";
     }
 
     isEnabled() {
-        return super.isEnabled()
-            && this.note.type === 'text'
-            && !this.note.hasLabel('noToc');
+        return super.isEnabled() && this.note.type === 'text';
     }
 
     async doRenderBody() {
@@ -106,6 +83,14 @@ export default class TocWidget extends CollapsibleWidget {
     }
 
     async refreshWithNote(note) {
+        const tocLabel = note.getLabel('toc');
+
+        if (tocLabel?.value === 'hide') {
+            this.toggleInt(false);
+            this.triggerCommand("reevaluateIsEnabled");
+            return;
+        }
+
         let $toc = "", headingCount = 0;
         // Check for type text unconditionally in case alwaysShowWidget is set
         if (this.note.type === 'text') {
@@ -114,7 +99,11 @@ export default class TocWidget extends CollapsibleWidget {
         }
 
         this.$toc.html($toc);
-        this.toggleInt(headingCount >= MIN_HEADING_COUNT);
+        this.toggleInt(
+            ["", "show"].includes(tocLabel?.value)
+            || headingCount >= options.getInt('minTocHeadings')
+        );
+
         this.triggerCommand("reevaluateIsEnabled");
     }
 
@@ -163,7 +152,9 @@ export default class TocWidget extends CollapsibleWidget {
             //
             // Create the list item and set up the click callback
             //
-            const $li = $('<li style="cursor:pointer">' + m[2] + '</li>');
+
+            const headingText = $("<div>").html(m[2]).text();
+            const $li = $('<li style="cursor:pointer">').text(headingText);
             // XXX Do this with CSS? How to inject CSS in doRender?
             $li.hover(function () {
                 $(this).css("font-weight", "bold");
@@ -190,9 +181,8 @@ export default class TocWidget extends CollapsibleWidget {
         const isReadOnly = await this.noteContext.isReadOnly();
 
         if (isReadOnly) {
-            const $readonlyTextContent = await this.noteContext.getContentElement();
-
-            const headingElement = findHeadingElementByIndex($readonlyTextContent[0], headingIndex);
+            const $container = await this.noteContext.getContentElement();
+            const headingElement = $container.find(":header")[headingIndex];
 
             if (headingElement != null) {
                 headingElement.scrollIntoView();
@@ -263,7 +253,7 @@ export default class TocWidget extends CollapsibleWidget {
         if (loadResults.isNoteContentReloaded(this.noteId)) {
             await this.refresh();
         } else if (loadResults.getAttributes().find(attr => attr.type === 'label'
-            && (attr.name.toLowerCase().includes('readonly') || attr.name === 'noToc')
+            && (attr.name.toLowerCase().includes('readonly') || attr.name === 'toc')
             && attributeService.isAffecting(attr, this.note))) {
 
             await this.refresh();

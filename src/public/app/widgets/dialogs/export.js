@@ -142,7 +142,7 @@ export default class ExportDialog extends BasicWidget {
 
             if (!exportType) {
                 // this shouldn't happen as we always choose default export type
-                alert("Choose export type first please");
+                toastService.showError("Choose export type first please");
                 return;
             }
 
@@ -213,10 +213,7 @@ export default class ExportDialog extends BasicWidget {
         const {noteId, parentNoteId} = treeService.getNoteIdAndParentIdFromNotePath(notePath);
 
         this.branchId = await froca.getBranchId(parentNoteId, noteId);
-
-        const noteTitle = await treeService.getNoteTitle(noteId);
-
-        this.$noteTitle.html(noteTitle);
+        this.$noteTitle.text(await treeService.getNoteTitle(noteId));
     }
 
     exportBranch(branchId, type, format, version) {
