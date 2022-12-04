@@ -33,26 +33,7 @@ async function getRenderedContent(note, options = {}) {
             }
         }
         else {
-            $renderedContent.css("padding", "10px");
-            $renderedContent.addClass("text-with-ellipsis");
-
-            let childNoteIds = note.getChildNoteIds();
-
-            if (childNoteIds.length > 10) {
-                childNoteIds = childNoteIds.slice(0, 10);
-            }
-
-            // just load the first 10 child notes
-            const childNotes = await froca.getNotes(childNoteIds);
-
-            for (const childNote of childNotes) {
-                $renderedContent.append(await linkService.createNoteLink(`${note.noteId}/${childNote.noteId}`, {
-                    showTooltip: false,
-                    showNoteIcon: true
-                }));
-
-                $renderedContent.append("<br>");
-            }
+            await renderChildrenList($renderedContent, note);
         }
     }
     else if (type === 'code') {
@@ -74,7 +55,7 @@ async function getRenderedContent(note, options = {}) {
         const $openButton = $('<button class="file-open btn btn-primary" type="button">Open</button>');
 
         $downloadButton.on('click', () => openService.downloadFileNote(note.noteId));
-        $openButton.on('click', () => openService.openNoteExternally(note.noteId));
+        $openButton.on('click', () => openService.openNoteExternally(note.noteId, note.mime));
 
         // open doesn't work for protected notes since it works through browser which isn't in protected session
         $openButton.toggle(!note.isProtected);
@@ -164,6 +145,9 @@ async function getRenderedContent(note, options = {}) {
             $renderedContent.append($("<div>").text("Error parsing content. Please check console.error() for more details."));
         }
     }
+    else if (type === 'book') {
+        // nothing, book doesn't have its own content
+    }
     else if (!options.tooltip && type === 'protected-session') {
         const $button = $(`<button class="btn btn-sm"><span class="bx bx-log-in"></span> Enter protected session</button>`)
             .on('click', protectedSessionService.enterProtectedSession);
@@ -185,6 +169,29 @@ async function getRenderedContent(note, options = {}) {
         $renderedContent,
         type
     };
+}
+
+async function renderChildrenList($renderedContent, note) {
+    $renderedContent.css("padding", "10px");
+    $renderedContent.addClass("text-with-ellipsis");
+
+    let childNoteIds = note.getChildNoteIds();
+
+    if (childNoteIds.length > 10) {
+        childNoteIds = childNoteIds.slice(0, 10);
+    }
+
+    // just load the first 10 child notes
+    const childNotes = await froca.getNotes(childNoteIds);
+
+    for (const childNote of childNotes) {
+        $renderedContent.append(await linkService.createNoteLink(`${note.noteId}/${childNote.noteId}`, {
+            showTooltip: false,
+            showNoteIcon: true
+        }));
+
+        $renderedContent.append("<br>");
+    }
 }
 
 function trim(text, doTrim) {

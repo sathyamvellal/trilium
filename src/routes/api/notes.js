@@ -6,6 +6,7 @@ const sql = require('../../services/sql');
 const utils = require('../../services/utils');
 const log = require('../../services/log');
 const TaskContext = require('../../services/task_context');
+const protectedSessionService = require('../../services/protected_session');
 const fs = require('fs');
 const becca = require("../../becca/becca");
 
@@ -305,19 +306,19 @@ function uploadModifiedFile(req) {
     note.setContent(fileContent);
 }
 
-function getBacklinkCount(req) {
+function forceSaveNoteRevision(req) {
     const {noteId} = req.params;
-
     const note = becca.getNote(noteId);
 
     if (!note) {
-        return [404, "Not found"];
+        return [404, `Note ${noteId} not found.`];
     }
-    else {
-        return {
-            count: note.getTargetRelations().filter(note => !note.getNote().hasLabel('excludeFromNoteMap')).length
-        };
+
+    if (!note.isContentAvailable()) {
+        return [400, `Note revision of a protected note cannot be created outside of a protected session.`];
     }
+
+    note.saveNoteRevision();
 }
 
 module.exports = {
@@ -335,5 +336,5 @@ module.exports = {
     eraseDeletedNotesNow,
     getDeleteNotesPreview,
     uploadModifiedFile,
-    getBacklinkCount
+    forceSaveNoteRevision
 };

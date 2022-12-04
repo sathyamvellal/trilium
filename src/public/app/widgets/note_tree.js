@@ -343,7 +343,7 @@ export default class NoteTreeWidget extends NoteContextAwareWidget {
 
                         node.setFocus(true);
                     }
-                    else if (event.ctrlKey) {
+                    else if ((!utils.isMac() && event.ctrlKey) || (utils.isMac() && event.metaKey)) {
                         const notePath = treeService.getNotePath(node);
                         appContext.tabManager.openTabWithNoteWithHoisting(notePath);
                     }
@@ -670,7 +670,7 @@ export default class NoteTreeWidget extends NoteContextAwareWidget {
         const note = branch.getNoteFromCache();
 
         if (!note) {
-            throw new Error(`Branch "${branch.branchId}" has no note "${branch.noteId}"`);
+            throw new Error(`Branch "${branch.branchId}" has no child note "${branch.noteId}"`);
         }
 
         const title = (branch.prefix ? (branch.prefix + " - ") : "") + note.title;
@@ -737,6 +737,12 @@ export default class NoteTreeWidget extends NoteContextAwareWidget {
 
         if (note.hasLabel('archived')) {
             extraClasses.push("archived");
+        }
+
+        const colorClass = note.getColorClass();
+
+        if (colorClass) {
+            extraClasses.push(colorClass);
         }
 
         return extraClasses.join(" ");
@@ -1041,7 +1047,7 @@ export default class NoteTreeWidget extends NoteContextAwareWidget {
         const noteIdsToReload = new Set();
 
         for (const ecAttr of loadResults.getAttributes()) {
-            if (ecAttr.type === 'label' && ['iconClass', 'cssClass', 'workspace', 'workspaceIconClass', 'archived'].includes(ecAttr.name)) {
+            if (ecAttr.type === 'label' && ['iconClass', 'cssClass', 'workspace', 'workspaceIconClass', 'archived', 'color'].includes(ecAttr.name)) {
                 if (ecAttr.isInheritable) {
                     noteIdsToReload.add(ecAttr.noteId);
                 }
@@ -1456,7 +1462,7 @@ export default class NoteTreeWidget extends NoteContextAwareWidget {
         clipboard.pasteInto(node.data.branchId);
     }
 
-    pasteNotesAfterFromClipboard({node}) {
+    pasteNotesAfterFromClipboardCommand({node}) {
         clipboard.pasteAfter(node.data.branchId);
     }
 

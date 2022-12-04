@@ -232,12 +232,17 @@ function focusSavedElement() {
 
     if ($lastFocusedElement.hasClass("ck")) {
         // must handle CKEditor separately because of this bug: https://github.com/ckeditor/ckeditor5/issues/607
+        // the bug manifests itself in resetting the cursor position to the first character - jumping above
 
         const editor = $lastFocusedElement
             .closest('.ck-editor__editable')
             .prop('ckeditorInstance');
 
-        editor.editing.view.focus();
+        if (editor) {
+            editor.editing.view.focus();
+        } else {
+            console.log("Could not find CKEditor instance to focus last element");
+        }
     } else {
         $lastFocusedElement.focus();
     }
@@ -256,6 +261,8 @@ async function openDialog($dialog, closeActDialog = true) {
     $dialog.modal();
 
     $dialog.on('hidden.bs.modal', () => {
+        $(".aa-input").autocomplete("close");
+
         if (!glob.activeDialog || glob.activeDialog === $dialog) {
             focusSavedElement();
         }
