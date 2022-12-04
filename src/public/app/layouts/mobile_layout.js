@@ -111,6 +111,7 @@ export default class MobileLayout {
                     .css('padding', '8px 16px 3px 0')
                     .css('font-size', 'larger')
                     .css('width', '100%')
+                    .css('min-height', '3rem')
                     .child(new FlexContainer('row')
                         .css('flex-shrink', '1')
                         .css('justify-content', 'space-around')
