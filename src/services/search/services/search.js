@@ -10,13 +10,14 @@ const becca = require('../../../becca/becca');
 const beccaService = require('../../../becca/becca_service');
 const utils = require('../../utils');
 const log = require('../../log');
-const scriptService = require("../../script.js");
+const scriptService = require("../../script");
 
 function searchFromNote(note) {
     let searchResultNoteIds, highlightedTokens;
 
     const searchScript = note.getRelationValue('searchScript');
     const searchString = note.getLabelValue('searchString');
+    let error = null;
 
     if (searchScript) {
         searchResultNoteIds = searchFromRelation(note, 'searchScript');
@@ -38,13 +39,15 @@ function searchFromNote(note) {
             .map(sr => sr.noteId);
 
         highlightedTokens = searchContext.highlightedTokens;
+        error = searchContext.getError();
     }
 
     // we won't return search note's own noteId
     // also don't allow root since that would force infinite cycle
     return {
         searchResultNoteIds: searchResultNoteIds.filter(resultNoteId => !['root', note.noteId].includes(resultNoteId)),
-        highlightedTokens
+        highlightedTokens,
+        error: error
     };
 }
 
@@ -148,7 +151,7 @@ function findResultsWithExpression(expression, searchContext) {
         noteIdToNotePath: {}
     };
 
-    const noteSet = expression.execute(allNoteSet, executionContext);
+    const noteSet = expression.execute(allNoteSet, executionContext, searchContext);
 
     const searchResults = noteSet.notes
         .map(note => {
@@ -162,16 +165,12 @@ function findResultsWithExpression(expression, searchContext) {
                 throw new Error(`Can't find note path for note ${JSON.stringify(note.getPojo())}`);
             }
 
-            if (notePathArray.includes("hidden")) {
-                return null;
-            }
-
             return new SearchResult(notePathArray);
         })
         .filter(note => !!note);
 
     for (const res of searchResults) {
-        res.computeScore(searchContext.highlightedTokens);
+        res.computeScore(searchContext.fulltextQuery, searchContext.highlightedTokens);
     }
 
     if (!noteSet.sorted) {
@@ -196,8 +195,18 @@ function findResultsWithExpression(expression, searchContext) {
 }
 
 function parseQueryToExpression(query, searchContext) {
-    const {fulltextTokens, expressionTokens} = lex(query);
-    const structuredExpressionTokens = handleParens(expressionTokens);
+    const {fulltextQuery, fulltextTokens, expressionTokens} = lex(query);
+    searchContext.fulltextQuery = fulltextQuery;
+
+    let structuredExpressionTokens;
+
+    try {
+        structuredExpressionTokens = handleParens(expressionTokens);
+    }
+    catch (e) {
+        structuredExpressionTokens = [];
+        searchContext.addError(e.message);
+    }
 
     const expression = parse({
         fulltextTokens,
@@ -213,7 +222,7 @@ function parseQueryToExpression(query, searchContext) {
             expression
         };
 
-        log.info("Search debug: " + JSON.stringify(searchContext.debugInfo, null, 4));
+        log.info(`Search debug: ${JSON.stringify(searchContext.debugInfo, null, 4)}`);
     }
 
     return expression;
@@ -346,15 +355,15 @@ function highlightSearchResults(searchResults, highlightedTokens) {
 
 function formatAttribute(attr) {
     if (attr.type === 'relation') {
-        return '~' + utils.escapeHtml(attr.name) + "=…";
+        return `~${utils.escapeHtml(attr.name)}=…`;
     }
     else if (attr.type === 'label') {
-        let label = '#' + utils.escapeHtml(attr.name);
+        let label = `#${utils.escapeHtml(attr.name)}`;
 
         if (attr.value) {
-            const val = /[^\w_-]/.test(attr.value) ? '"' + attr.value + '"' : attr.value;
+            const val = /[^\w_-]/.test(attr.value) ? `"${attr.value}"` : attr.value;
 
-            label += '=' + utils.escapeHtml(val);
+            label += `=${utils.escapeHtml(val)}`;
         }
 
         return label;

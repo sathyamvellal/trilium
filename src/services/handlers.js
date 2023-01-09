@@ -46,11 +46,19 @@ eventService.subscribe([ eventService.ENTITY_CHANGED, eventService.ENTITY_DELETE
 
         if (entity.type === 'label' && ['sorted', 'sortDirection', 'sortFoldersFirst'].includes(entity.name)) {
             handleSortedAttribute(entity);
+        } else if (entity.type === 'label') {
+            handleMaybeSortingLabel(entity);
         }
     }
     else if (entityName === 'notes') {
         // ENTITY_DELETED won't trigger anything since all branches/attributes are already deleted at this point
         runAttachedRelations(entity, 'runOnNoteChange', entity);
+    }
+});
+
+eventService.subscribe(eventService.ENTITY_CHANGED, ({entityName, entity}) => {
+    if (entityName === 'note_contents') {
+        runAttachedRelations(entity, 'runOnNoteContentChange', entity);
     }
 });
 
@@ -91,12 +99,19 @@ eventService.subscribe(eventService.ENTITY_CREATED, ({ entityName, entity }) => 
                 noteService.duplicateSubtreeWithoutRoot(templateNote.noteId, note.noteId);
             }
         }
-        else if (entity.type === 'label' && entity.name === 'sorted') {
+        else if (entity.type === 'label' && ['sorted', 'sortDirection', 'sortFoldersFirst'].includes(entity.name)) {
             handleSortedAttribute(entity);
+        }
+        else if (entity.type === 'label') {
+            handleMaybeSortingLabel(entity);
         }
     }
     else if (entityName === 'branches') {
         runAttachedRelations(entity.getNote(), 'runOnBranchCreation', entity);
+
+        if (entity.parentNote?.hasLabel("sorted")) {
+            treeService.sortNotesIfNeeded(entity.parentNoteId);
+        }
     }
     else if (entityName === 'notes') {
         runAttachedRelations(entity, 'runOnNoteCreation', entity);
@@ -110,7 +125,7 @@ eventService.subscribe(eventService.CHILD_NOTE_CREATED, ({ parentNote, childNote
 function processInverseRelations(entityName, entity, handler) {
     if (entityName === 'attributes' && entity.type === 'relation') {
         const note = entity.getNote();
-        const relDefinitions = note.getLabels('relation:' + entity.name);
+        const relDefinitions = note.getLabels(`relation:${entity.name}`);
 
         for (const relDefinition of relDefinitions) {
             const definition = relDefinition.getDefinition();
@@ -133,6 +148,22 @@ function handleSortedAttribute(entity) {
         if (note) {
             for (const noteId of note.getSubtreeNoteIds()) {
                 treeService.sortNotesIfNeeded(noteId);
+            }
+        }
+    }
+}
+
+function handleMaybeSortingLabel(entity) {
+    // check if this label is used for sorting, if yes force re-sort
+    const note = becca.notes[entity.noteId];
+
+    // this will not work on deleted notes, but in that case we don't really need to re-sort
+    if (note) {
+        for (const parentNote of note.getParentNotes()) {
+            const sorted = parentNote.getLabelValue("sorted");
+
+            if (sorted?.includes(entity.name)) { // hacky check if the sorting is affected by this label
+                treeService.sortNotesIfNeeded(parentNote.noteId);
             }
         }
     }
