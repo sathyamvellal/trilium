@@ -88,7 +88,7 @@ export default class LauncherWidget extends BasicWidget {
         const builtinWidget = note.getLabelValue("builtinWidget");
 
         if (builtinWidget === 'calendar') {
-            return new CalendarWidget(note.title, note.getIcon());
+            return new CalendarWidget(note.title, note.getIcon(), note.getLabelValue("calendarRootLabel"), note.getLabelValue("calendarNoteType"), note.getLabelValue("calendarStartOfTheWeek"));
         } else if (builtinWidget === 'spacer') {
             // || has to be inside since 0 is a valid value
             const baseSize = parseInt(note.getLabelValue("baseSize") || "40");

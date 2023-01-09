@@ -30,14 +30,11 @@ const DROPDOWN_TPL = `
 </div>`;
 
 export default class CalendarWidget extends RightDropdownButtonWidget {
-    // constructor(iconClass, title, customNotesRootLabel, customNotesType, startOfTheWeek='monday') {
-    //     super(iconClass, title, DROPDOWN_TPL);
-    //     this.customNotesRootLabel = customNotesRootLabel;
-    //     this.customNotesType = customNotesType;
-    //     this.startOfTheWeek = startOfTheWeek;
-    // }
-    constructor(title, icon) {
+    constructor(title, icon, customNotesRootLabel, customNotesType, startOfTheWeek='monday') {
         super(title, icon, DROPDOWN_TPL);
+        this.customNotesRootLabel = customNotesRootLabel;
+        this.customNotesType = customNotesType;
+        this.startOfTheWeek = startOfTheWeek;
     }
 
     doRender() {

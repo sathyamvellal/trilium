@@ -194,7 +194,9 @@ const HIDDEN_SUBTREE_DEFINITION = {
                                 { type: 'label', name: 'desktopOnly' }
                             ] },
                         { id: '_lbNoteMap', title: 'Note Map', type: 'launcher', targetNoteId: '_globalNoteMap', icon: 'bx bx-map-alt' },
-                        { id: '_lbCalendar', title: 'Calendar', type: 'launcher', builtinWidget: 'calendar', icon: 'bx bx-calendar' },
+                        { id: '_lbCalendar', title: 'General Logs', type: 'launcher', builtinWidget: 'calendar', icon: 'bx bx-calendar', calendarRootLabel: 'calendarRoot', calendarNoteType: 'date', calendarStartOfTheWeek: 'monday' },
+                        { id: '_lbCalendarJournal', title: 'Journal', type: 'launcher', builtinWidget: 'calendar', icon: 'bx bx-book', calendarRootLabel: 'journal', calendarNoteType: 'date', calendarStartOfTheWeek: 'monday' },
+                        { id: '_lbCalendarHealthLogs', title: 'Health Logs', type: 'launcher', builtinWidget: 'calendar', icon: 'bx bx-calendar-plus', calendarRootLabel: 'healthLogs', calendarNoteType: 'date', calendarStartOfTheWeek: 'monday' },
                         { id: '_lbRecentChanges', title: 'Recent Changes', type: 'launcher', command: 'showRecentChanges', icon: 'bx bx-history', attributes: [
                                 { type: 'label', name: 'desktopOnly' }
                             ] },
@@ -279,6 +281,9 @@ function checkHiddenSubtreeRecursively(parentNoteId, item) {
             }
 
             attrs.push({ type: 'label', name: 'builtinWidget', value: item.builtinWidget });
+            attrs.push({ type: 'label', name: 'calendarRootLabel', value: item.calendarRootLabel });
+            attrs.push({ type: 'label', name: 'calendarNoteType', value: item.calendarNoteType });
+            attrs.push({ type: 'label', name: 'calendarStartOfTheWeek', value: item.calendarStartOfTheWeek });
         } else if (item.targetNoteId) {
             attrs.push({ type: 'relation', name: 'template', value: LBTPL_NOTE_LAUNCHER });
             attrs.push({ type: 'relation', name: 'target', value: item.targetNoteId });
