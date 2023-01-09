@@ -5,6 +5,7 @@ const protectedSessionService = require('../../services/protected_session');
 const noteRevisionService = require('../../services/note_revisions');
 const utils = require('../../services/utils');
 const sql = require('../../services/sql');
+const cls = require('../../services/cls');
 const path = require('path');
 const becca = require("../../becca/becca");
 
@@ -51,11 +52,10 @@ function getRevisionFilename(noteRevision) {
         .replace(/[^0-9_]/g, '');
 
     if (extension) {
-        filename = filename.substr(0, filename.length - extension.length)
-            + '-' + date + extension;
+        filename = `${filename.substr(0, filename.length - extension.length)}-${date}${extension}`;
     }
     else {
-        filename += '-' + date;
+        filename += `-${date}`;
     }
 
     return filename;
@@ -122,10 +122,17 @@ function getEditedNotesOnDate(req) {
                 WHERE note_revisions.dateLastEdited LIKE :date
         )
         ORDER BY isDeleted
-        LIMIT 50`, {date: req.params.date + '%'});
+        LIMIT 50`, {date: `${req.params.date}%`});
 
-    const notes = becca.getNotes(noteIds, true)
-        .map(note => note.getPojo());
+    let notes = becca.getNotes(noteIds, true);
+
+    // Narrow down the results if a note is hoisted, similar to "Jump to note".
+    const hoistedNoteId = cls.getHoistedNoteId();
+    if (hoistedNoteId !== 'root') {
+        notes = notes.filter(note => note.hasAncestor(hoistedNoteId));
+    }
+
+    notes = notes.map(note => note.getPojo());
 
     for (const note of notes) {
         const notePath = note.isDeleted ? null : beccaService.getNotePath(note.noteId);

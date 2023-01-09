@@ -1,6 +1,6 @@
 function reloadFrontendApp(reason) {
     if (reason) {
-        logInfo("Frontend app reload: " + reason);
+        logInfo(`Frontend app reload: ${reason}`);
     }
 
     window.location.reload(true);
@@ -11,20 +11,20 @@ function parseDate(str) {
         return new Date(Date.parse(str));
     }
     catch (e) {
-        throw new Error("Can't parse date from " + str + ": " + e.stack);
+        throw new Error(`Can't parse date from ${str}: ${e.stack}`);
     }
 }
 
 function padNum(num) {
-    return (num <= 9 ? "0" : "") + num;
+    return `${num <= 9 ? "0" : ""}${num}`;
 }
 
 function formatTime(date) {
-    return padNum(date.getHours()) + ":" + padNum(date.getMinutes());
+    return `${padNum(date.getHours())}:${padNum(date.getMinutes())}`;
 }
 
 function formatTimeWithSeconds(date) {
-    return padNum(date.getHours()) + ":" + padNum(date.getMinutes()) + ":" + padNum(date.getSeconds());
+    return `${padNum(date.getHours())}:${padNum(date.getMinutes())}:${padNum(date.getSeconds())}`;
 }
 
 // this is producing local time!
@@ -37,11 +37,11 @@ function formatDate(date) {
 
 // this is producing local time!
 function formatDateISO(date) {
-    return date.getFullYear() + "-" + padNum(date.getMonth() + 1) + "-" + padNum(date.getDate());
+    return `${date.getFullYear()}-${padNum(date.getMonth() + 1)}-${padNum(date.getDate())}`;
 }
 
 function formatDateTime(date) {
-    return formatDate(date) + " " + formatTime(date);
+    return `${formatDate(date)} ${formatTime(date)}`;
 }
 
 function localNowDateTime() {
@@ -58,6 +58,11 @@ function isElectron() {
 
 function isMac() {
     return navigator.platform.indexOf('Mac') > -1;
+}
+
+function isCtrlKey(evt) {
+    return (!isMac() && evt.ctrlKey)
+        || (isMac() && evt.metaKey);
 }
 
 function assertArguments() {
@@ -96,14 +101,14 @@ async function stopWatch(what, func) {
 }
 
 function formatValueWithWhitespace(val) {
-    return /[^\w_-]/.test(val) ? '"' + val + '"' : val;
+    return /[^\w_-]/.test(val) ? `"${val}"` : val;
 }
 
 function formatLabel(label) {
-    let str = "#" + formatValueWithWhitespace(label.name);
+    let str = `#${formatValueWithWhitespace(label.name)}`;
 
     if (label.value !== "") {
-        str += "=" + formatValueWithWhitespace(label.value);
+        str += `=${formatValueWithWhitespace(label.value)}`;
     }
 
     return str;
@@ -132,35 +137,6 @@ function randomString(len) {
     return text;
 }
 
-function bindGlobalShortcut(keyboardShortcut, handler) {
-    bindElShortcut($(document), keyboardShortcut, handler);
-}
-
-function bindElShortcut($el, keyboardShortcut, handler) {
-    if (isDesktop()) {
-        keyboardShortcut = normalizeShortcut(keyboardShortcut);
-
-        $el.bind('keydown', keyboardShortcut, e => {
-            handler(e);
-
-            e.preventDefault();
-            e.stopPropagation();
-        });
-    }
-}
-
-/**
- * Normalize to the form expected by the jquery.hotkeys.js
- */
-function normalizeShortcut(shortcut) {
-    return shortcut
-        .toLowerCase()
-        .replace("enter", "return")
-        .replace("delete", "del")
-        .replace("ctrl+alt", "alt+ctrl")
-        .replace("meta+alt", "alt+meta"); // alt needs to be first;
-}
-
 function isMobile() {
     return window.device === "mobile"
         // window.device is not available in setup
@@ -178,22 +154,22 @@ function isDesktop() {
 
 function setCookie(name, value) {
     const date = new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000);
-    const expires = "; expires=" + date.toUTCString();
+    const expires = `; expires=${date.toUTCString()}`;
 
-    document.cookie = name + "=" + (value || "")  + expires + ";";
+    document.cookie = `${name}=${value || ""}${expires};`;
 }
 
 function setSessionCookie(name, value) {
-    document.cookie = name + "=" + (value || "") + "; SameSite=Strict";
+    document.cookie = `${name}=${value || ""}; SameSite=Strict`;
 }
 
 function getCookie(name) {
-    const valueMatch = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
+    const valueMatch = document.cookie.match(`(^|;) ?${name}=([^;]*)(;|$)`);
     return valueMatch ? valueMatch[2] : null;
 }
 
 function getNoteTypeClass(type) {
-    return "type-" + type;
+    return `type-${type}`;
 }
 
 function getMimeTypeClass(mime) {
@@ -208,7 +184,7 @@ function getMimeTypeClass(mime) {
         mime = mime.substr(0, semicolonIdx);
     }
 
-    return 'mime-' + mime.toLowerCase().replace(/[\W_]+/g,"-");
+    return `mime-${mime.toLowerCase().replace(/[\W_]+/g, "-")}`;
 }
 
 function closeActiveDialog() {
@@ -232,12 +208,17 @@ function focusSavedElement() {
 
     if ($lastFocusedElement.hasClass("ck")) {
         // must handle CKEditor separately because of this bug: https://github.com/ckeditor/ckeditor5/issues/607
+        // the bug manifests itself in resetting the cursor position to the first character - jumping above
 
         const editor = $lastFocusedElement
             .closest('.ck-editor__editable')
             .prop('ckeditorInstance');
 
-        editor.editing.view.focus();
+        if (editor) {
+            editor.editing.view.focus();
+        } else {
+            console.log("Could not find CKEditor instance to focus last element");
+        }
     } else {
         $lastFocusedElement.focus();
     }
@@ -256,6 +237,8 @@ async function openDialog($dialog, closeActDialog = true) {
     $dialog.modal();
 
     $dialog.on('hidden.bs.modal', () => {
+        $(".aa-input").autocomplete("close");
+
         if (!glob.activeDialog || glob.activeDialog === $dialog) {
             focusSavedElement();
         }
@@ -342,7 +325,13 @@ function openHelp(e) {
 }
 
 function initHelpButtons($el) {
-    $el.on("click", "*[data-help-page]", e => openHelp(e));
+    // for some reason the .on(event, listener, handler) does not work here (e.g. Options -> Sync -> Help button)
+    // so we do it manually
+    $el.on("click", e => {
+        if ($(e.target).attr("data-help-page")) {
+            openHelp(e)
+        }
+    });
 }
 
 function filterAttributeName(name) {
@@ -378,14 +367,13 @@ export default {
     now,
     isElectron,
     isMac,
+    isCtrlKey,
     assertArguments,
     escapeHtml,
     stopWatch,
     formatLabel,
     toObject,
     randomString,
-    bindGlobalShortcut,
-    bindElShortcut,
     isMobile,
     isDesktop,
     setCookie,
@@ -399,7 +387,6 @@ export default {
     focusSavedElement,
     isHtmlEmpty,
     clearBrowserCache,
-    normalizeShortcut,
     copySelectionToClipboard,
     dynamicRequire,
     timeLimit,

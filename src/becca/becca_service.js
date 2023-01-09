@@ -1,6 +1,6 @@
 "use strict";
 
-const becca = require('./becca.js');
+const becca = require('./becca');
 const cls = require('../services/cls');
 const protectedSessionService = require('../services/protected_session');
 const log = require('../services/log');
@@ -75,7 +75,7 @@ function getNoteTitle(childNoteId, parentNoteId) {
 
     const branch = parentNote ? becca.getBranchFromChildAndParent(childNote.noteId, parentNote.noteId) : null;
 
-    return ((branch && branch.prefix) ? `${branch.prefix} - ` : '') + title;
+    return `${(branch && branch.prefix) ? `${branch.prefix} - ` : ''}${title}`;
 }
 
 function getNoteTitleArrayForPath(notePathArray) {
@@ -83,14 +83,19 @@ function getNoteTitleArrayForPath(notePathArray) {
         throw new Error(`${notePathArray} is not an array.`);
     }
 
-    if (notePathArray.length === 1 && notePathArray[0] === cls.getHoistedNoteId()) {
-        return [getNoteTitle(cls.getHoistedNoteId())];
+    const hoistedNoteId = cls.getHoistedNoteId();
+
+    if (notePathArray.length === 1 && notePathArray[0] === hoistedNoteId) {
+        return [getNoteTitle(hoistedNoteId)];
     }
 
     const titles = [];
 
     let parentNoteId = 'root';
     let hoistedNotePassed = false;
+
+    // this is a notePath from outside of hoisted subtree so full title path needs to be returned
+    const outsideOfHoistedSubtree = !notePathArray.includes(hoistedNoteId);
 
     for (const noteId of notePathArray) {
         // start collecting path segment titles only after hoisted note
@@ -100,7 +105,7 @@ function getNoteTitleArrayForPath(notePathArray) {
             titles.push(title);
         }
 
-        if (noteId === cls.getHoistedNoteId()) {
+        if (!hoistedNotePassed && (noteId === hoistedNoteId || outsideOfHoistedSubtree)) {
             hoistedNotePassed = true;
         }
 
@@ -124,8 +129,9 @@ function getNoteTitleForPath(notePathArray) {
  */
 function getSomePath(note, path = []) {
     // first try to find note within hoisted note, otherwise take any existing note path
-    return getSomePathInner(note, path, true)
-        || getSomePathInner(note, path, false);
+    // each branch needs a separate copy since it's mutable
+    return getSomePathInner(note, [...path], true)
+        || getSomePathInner(note, [...path], false);
 }
 
 function getSomePathInner(note, path, respectHoisting) {
@@ -174,7 +180,7 @@ function getNotePath(noteId) {
         let branchId;
 
         if (note.isRoot()) {
-            branchId = 'root';
+            branchId = 'none_root';
         }
         else {
             const parentNote = note.parents[0];

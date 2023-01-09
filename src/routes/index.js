@@ -9,6 +9,8 @@ const env = require('../services/env');
 const utils = require('../services/utils');
 const protectedSessionService = require("../services/protected_session");
 const packageJson = require('../../package.json');
+const assetPath = require("../services/asset_path");
+const appPath = require("../services/app_path");
 
 function index(req, res) {
     const options = optionService.getOptionsMap();
@@ -36,7 +38,9 @@ function index(req, res) {
         extraHoistedNoteId: req.query.extraHoistedNoteId,
         isProtectedSessionAvailable: protectedSessionService.isProtectedSessionAvailable(),
         maxContentWidth: parseInt(options.maxContentWidth),
-        triliumVersion: packageJson.version
+        triliumVersion: packageJson.version,
+        assetPath: assetPath,
+        appPath: appPath
     });
 }
 
@@ -46,7 +50,7 @@ function getThemeCssUrl(theme) {
     }
 
     if (theme === 'dark') {
-        return `stylesheets/theme-dark.css`;
+        return `${assetPath}/stylesheets/theme-dark.css`;
     }
     else {
         const themeNote = attributeService.getNoteWithLabel('appTheme', theme);

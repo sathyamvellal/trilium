@@ -8,6 +8,7 @@ import promotedAttributeDefinitionParser from '../../services/promoted_attribute
 import NoteContextAwareWidget from "../note_context_aware_widget.js";
 import SpacedUpdate from "../../services/spaced_update.js";
 import utils from "../../services/utils.js";
+import shortcutService from "../../services/shortcuts.js";
 
 const TPL = `
 <div class="attr-detail">
@@ -209,11 +210,10 @@ const ATTR_HELP = {
         "workspaceCalendarRoot": "Defines per-workspace calendar root",
         "workspaceTemplate": "This note will appear in the selection of available template when creating new note, but only when hoisted into a workspace containing this template",
         "searchHome": "new search notes will be created as children of this note",
-        "hoistedSearchHome": "new search notes will be created as children of this note when hoisted to some ancestor of this note",
-        "inbox": "default inbox location for new notes",
-        "hoistedInbox": "default inbox location for new notes when hoisted to some ancestor of this note",
+        "workspaceSearchHome": "new search notes will be created as children of this note when hoisted to some ancestor of this workspace note",
+        "inbox": "default inbox location for new notes - when you create a note using \"new note\" button in the sidebar, notes will be created as child notes in the note marked as with <code>#inbox</code> label.",
+        "workspaceInbox": "default inbox location for new notes when hoisted to some ancestor of this workspace note",
         "sqlConsoleHome": "default location of SQL console notes",
-        "bookmarked": "note with this label will appear in bookmarks",
         "bookmarkFolder": "note with this label will appear in bookmarks as folder (allowing access to its children)",
         "shareHiddenFromTree": "this note is hidden from left navigation tree, but still accessible with its URL",
         "shareAlias": "define an alias using which the note will be available under https://your_trilium_host/share/[your_alias]",
@@ -223,6 +223,7 @@ const ATTR_HELP = {
         "shareRaw": "note will be served in its raw format, without HTML wrapper",
         "shareDisallowRobotIndexing": `will forbid robot indexing of this note via <code>X-Robots-Tag: noindex</code> header`,
         "shareCredentials": "require credentials to access this shared note. Value is expected to be in format 'username:password'. Don't forget to make this inheritable to apply to child-notes/images.",
+        "shareIndex": "note with this this label will list all roots of shared notes",
         "displayRelations": "comma delimited names of relations which should be displayed. All other ones will be hidden.",
         "hideRelations": "comma delimited names of relations which should be hidden. All other ones will be displayed.",
         "titleTemplate": `default title of notes created as children of this note. The value is evaluated as JavaScript string 
@@ -235,18 +236,24 @@ const ATTR_HELP = {
                         
                         See <a href="https://github.com/zadam/trilium/wiki/Default-note-title">wiki with details</a>, API docs for <a href="https://zadam.github.io/trilium/backend_api/Note.html">parentNote</a> and <a href="https://day.js.org/docs/en/display/format">now</a> for details.`,
         "template": "This note will appear in the selection of available template when creating new note",
-        "toc": "<code>#toc</code> or <code>#toc=show</code> will force the Table of Contents to be shown, <code>#toc=hide</code> will force hiding it. If the label doesn't exist, the global setting is observed"
+        "toc": "<code>#toc</code> or <code>#toc=show</code> will force the Table of Contents to be shown, <code>#toc=hide</code> will force hiding it. If the label doesn't exist, the global setting is observed",
+        "color": "defines color of the note in note tree, links etc. Use any valid CSS color value like 'red' or #a13d5f",
+        "keyboardShortcut": "Defines a keyboard shortcut which will immediately jump to this note. Example: 'ctrl+alt+e'. Requires frontend reload for the change to take effect.",
+        "keepCurrentHoisting": "Opening this link won't change hoisting even if the note is not displayable in the current hoisted subtree.",
+        "executeButton": "Title of the button which will execute the current code note",
+        "executeDescription": "Longer description of the current code note displayed together with the execute button",
     },
     "relation": {
-        "runOnNoteCreation": "executes when note is created on backend",
+        "runOnNoteCreation": "executes when note is created on backend. Use this relation if you want to run the script for all notes created under a specific subtree. In that case, create it on the subtree root note and make it inheritable. A new note created within the subtree (any depth) will trigger the script.",
+        "runOnChildNoteCreation": "executes when new note is created under the note where this relation is defined",
         "runOnNoteTitleChange": "executes when note title is changed (includes note creation as well)",
-        "runOnNoteChange": "executes when note is changed (includes note creation as well)",
+        "runOnNoteContentChange": "executes when note content is changed  (includes note creation as well).",
+        "runOnNoteChange": "executes when note is changed (includes note creation as well). Does not include content changes",
         "runOnNoteDeletion": "executes when note is being deleted",
         "runOnBranchCreation": "executes when a branch is created. Branch is a link between parent note and child note and is created e.g. when cloning or moving note.",
         "runOnBranchDeletion": "executes when a branch is deleted. Branch is a link between parent note and child note and is deleted e.g. when moving note (old branch/link is deleted).",
-        "runOnChildNoteCreation": "executes when new note is created under this note",
-        "runOnAttributeCreation": "executes when new attribute is created under this note",
-        "runOnAttributeChange": "executes when attribute is changed under this note",
+        "runOnAttributeCreation": "executes when new attribute is created for the note which defines this relation",
+        "runOnAttributeChange": " executes when the attribute is changed of a note which defines this relation. This is triggered also when the attribute is deleted",
         "template": "attached note's attributes will be inherited even without parent-child relationship. See template for details.",
         "renderNote": 'notes of type "render HTML note" will be rendered using a code note (HTML or script) and it is necessary to point using this relation to which note should be rendered',
         "widget": "target of this relation will be executed and rendered as a widget in the sidebar",
@@ -268,8 +275,8 @@ export default class AttributeDetailWidget extends NoteContextAwareWidget {
 
         this.$widget = $(TPL);
 
-        utils.bindElShortcut(this.$widget, 'ctrl+return', () => this.saveAndClose());
-        utils.bindElShortcut(this.$widget, 'esc', () => this.cancelAndClose());
+        shortcutService.bindElShortcut(this.$widget, 'ctrl+return', () => this.saveAndClose());
+        shortcutService.bindElShortcut(this.$widget, 'esc', () => this.cancelAndClose());
 
 
         this.$title = this.$widget.find('.attr-detail-title');
@@ -623,9 +630,9 @@ export default class AttributeDetailWidget extends NoteContextAwareWidget {
         }
 
         if (this.attrType === 'label-definition') {
-            attrName = 'label:' + attrName;
+            attrName = `label:${attrName}`;
         } else if (this.attrType === 'relation-definition') {
-            attrName = 'relation:' + attrName;
+            attrName = `relation:${attrName}`;
         }
 
         this.attribute.name = attrName;
@@ -657,12 +664,12 @@ export default class AttributeDetailWidget extends NoteContextAwareWidget {
             props.push(this.$inputLabelType.val());
 
             if (this.$inputLabelType.val() === 'number' && this.$inputNumberPrecision.val() !== '') {
-                props.push('precision=' + this.$inputNumberPrecision.val());
+                props.push(`precision=${this.$inputNumberPrecision.val()}`);
             }
         } else if (this.attrType === 'relation-definition' && this.$inputInverseRelation.val().trim().length > 0) {
             const inverseRelationName = this.$inputInverseRelation.val();
 
-            props.push("inverse=" + utils.filterAttributeName(inverseRelationName));
+            props.push(`inverse=${utils.filterAttributeName(inverseRelationName)}`);
         }
 
         this.$rowNumberPrecision.toggle(
@@ -678,7 +685,7 @@ export default class AttributeDetailWidget extends NoteContextAwareWidget {
 
     createNoteLink(noteId) {
         return $("<a>", {
-            href: '#' + noteId,
+            href: `#${noteId}`,
             class: 'reference-link',
             'data-note-path': noteId
         });

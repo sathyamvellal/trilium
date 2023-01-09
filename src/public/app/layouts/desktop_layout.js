@@ -20,14 +20,11 @@ import ImagePropertiesWidget from "../widgets/ribbon_widgets/image_properties.js
 import NotePropertiesWidget from "../widgets/ribbon_widgets/note_properties.js";
 import NoteIconWidget from "../widgets/note_icon.js";
 import SearchResultWidget from "../widgets/search_result.js";
-import SyncStatusWidget from "../widgets/sync_status.js";
 import ScrollingContainer from "../widgets/containers/scrolling_container.js";
 import RootContainer from "../widgets/containers/root_container.js";
 import NoteUpdateStatusWidget from "../widgets/note_update_status.js";
 import SpacerWidget from "../widgets/spacer.js";
 import QuickSearchWidget from "../widgets/quick_search.js";
-import ButtonWidget from "../widgets/buttons/button_widget.js";
-import ProtectedSessionStatusWidget from "../widgets/buttons/protected_session_status.js";
 import SplitNoteContainer from "../widgets/containers/split_note_container.js";
 import LeftPaneToggleWidget from "../widgets/buttons/left_pane_toggle.js";
 import CreatePaneButton from "../widgets/buttons/create_pane_button.js";
@@ -40,11 +37,8 @@ import NotePathsWidget from "../widgets/ribbon_widgets/note_paths.js";
 import SimilarNotesWidget from "../widgets/ribbon_widgets/similar_notes.js";
 import RightPaneContainer from "../widgets/containers/right_pane_container.js";
 import EditButton from "../widgets/buttons/edit_button.js";
-import CalendarWidget from "../widgets/buttons/calendar.js";
 import EditedNotesWidget from "../widgets/ribbon_widgets/edited_notes.js";
-import OpenNoteButtonWidget from "../widgets/buttons/open_note_button_widget.js";
 import MermaidWidget from "../widgets/mermaid.js";
-import BookmarkButtons from "../widgets/bookmark_buttons.js";
 import NoteWrapperWidget from "../widgets/note_wrapper.js";
 import BacklinksWidget from "../widgets/floating_buttons/zpetne_odkazy.js";
 import SharedInfoWidget from "../widgets/shared_info.js";
@@ -74,13 +68,15 @@ import DeleteNotesDialog from "../widgets/dialogs/delete_notes.js";
 import InfoDialog from "../widgets/dialogs/info.js";
 import ConfirmDialog from "../widgets/dialogs/confirm.js";
 import PromptDialog from "../widgets/dialogs/prompt.js";
-import OptionsDialog from "../widgets/dialogs/options.js";
 import FloatingButtons from "../widgets/floating_buttons/floating_buttons.js";
 import RelationMapButtons from "../widgets/floating_buttons/relation_map_buttons.js";
 import MermaidExportButton from "../widgets/floating_buttons/mermaid_export_button.js";
-import EditableCodeButtonsWidget from "../widgets/type_widgets/editable_code_buttons.js";
+import LauncherContainer from "../widgets/containers/launcher_container.js";
+import NoteRevisionsButton from "../widgets/buttons/note_revisions_button.js";
+import CodeButtonsWidget from "../widgets/floating_buttons/code_buttons.js";
 import ApiLogWidget from "../widgets/api_log.js";
 import HideFloatingButtonsButton from "../widgets/floating_buttons/hide_floating_buttons_button.js";
+import ScriptExecutorWidget from "../widgets/ribbon_widgets/script_executor.js";
 
 export default class DesktopLayout {
     constructor(customWidgets) {
@@ -88,7 +84,7 @@ export default class DesktopLayout {
     }
 
     getRootWidget(appContext) {
-        appContext.mainTreeWidget = new NoteTreeWidget("main");
+        appContext.noteTreeWidget = new NoteTreeWidget();
 
         return new RootContainer()
             .setParent(appContext)
@@ -96,41 +92,15 @@ export default class DesktopLayout {
                 .id("launcher-pane")
                 .css("width", "53px")
                 .child(new GlobalMenuWidget())
-                .child(new ButtonWidget()
-                    .icon("bx-file-blank")
-                    .title("New note")
-                    .command("createNoteIntoInbox"))
-                .child(new ButtonWidget()
-                    .icon("bx-search")
-                    .title("Search")
-                    .command("searchNotes"))
-                .child(new ButtonWidget()
-                    .icon("bx-send")
-                    .title("Jump to note")
-                    .command("jumpToNote"))
-                .child(new OpenNoteButtonWidget()
-                    .targetNote('globalnotemap'))
-                .child(new ButtonWidget()
-                    .icon("bx-history")
-                    .title("Show recent changes")
-                    .command("showRecentChanges"))
-                .child(new CalendarWidget("bx-book", "Logs", "logs", "week", "monday"))
-                .child(new CalendarWidget("bx-task", "ToDo", "todo", "month", "monday"))
-                .child(new CalendarWidget("bx-receipt", "Status", "status", "week", "tuesday"))
-                // .child(new CalendarWidget("bx-git-pull-request", "Reviews", "reviews", "month"))
-                .child(new SpacerWidget(40, 0))
-                .child(new FlexContainer("column")
-                    .id("plugin-buttons")
-                    .contentSized())
-                .child(new BookmarkButtons())
-                .child(new SpacerWidget(0, 1000))
-                .child(new ProtectedSessionStatusWidget())
-                .child(new SyncStatusWidget())
+                .child(new LauncherContainer())
+                // .child(new CalendarWidget("bx-calendar-plus", "Health Logs", "healthLogs", "date"))
+                // .child(new CalendarWidget("bx-book", "Journal", "journal", "date"))
+                // .child(new CalendarWidget("bx-calendar", "General", "calendarRoot", "date"))
                 .child(new LeftPaneToggleWidget())
             )
             .child(new LeftPaneContainer()
                 .child(new QuickSearchWidget())
-                .child(appContext.mainTreeWidget)
+                .child(appContext.noteTreeWidget)
                 .child(...this.customWidgets.get('left-pane'))
             )
             .child(new FlexContainer('column')
@@ -149,64 +119,65 @@ export default class DesktopLayout {
                         .collapsible()
                         .id('center-pane')
                         .child(new SplitNoteContainer(() =>
-                            new NoteWrapperWidget()
-                                .child(new FlexContainer('row').class('title-row')
-                                    .css("height", "50px")
-                                    .css('align-items', "center")
-                                    .cssBlock('.title-row > * { margin: 5px; }')
-                                    .child(new NoteIconWidget())
-                                    .child(new NoteTitleWidget())
-                                    .child(new SpacerWidget(0, 1))
-                                    .child(new ClosePaneButton())
-                                    .child(new CreatePaneButton())
-                                )
-                                .child(
-                                    new RibbonContainer()
-                                        .ribbon(new SearchDefinitionWidget())
-                                        .ribbon(new EditedNotesWidget())
-                                        .ribbon(new BookPropertiesWidget())
-                                        .ribbon(new NotePropertiesWidget())
-                                        .ribbon(new FilePropertiesWidget())
-                                        .ribbon(new ImagePropertiesWidget())
-                                        .ribbon(new PromotedAttributesWidget())
-                                        .ribbon(new BasicPropertiesWidget())
-                                        .ribbon(new OwnedAttributeListWidget())
-                                        .ribbon(new InheritedAttributesWidget())
-                                        .ribbon(new NotePathsWidget())
-                                        .ribbon(new NoteMapRibbonWidget())
-                                        .ribbon(new SimilarNotesWidget())
-                                        .ribbon(new NoteInfoWidget())
-                                        .button(new EditButton())
-                                        .button(new ButtonWidget()
-                                            .icon('bx-history')
-                                            .title("Note Revisions")
-                                            .command("showNoteRevisions")
-                                            .titlePlacement("bottom"))
-                                        .button(new NoteActionsWidget())
-                                )
-                                .child(new SharedInfoWidget())
-                                .child(new NoteUpdateStatusWidget())
-                                .child(new FloatingButtons()
-                                    .child(new RelationMapButtons())
-                                    .child(new MermaidExportButton())
-                                    .child(new BacklinksWidget())
-                                    .child(new HideFloatingButtonsButton())
-                                )
-                                .child(new MermaidWidget())
-                                .child(
-                                    new ScrollingContainer()
-                                        .filling()
-                                        .child(new SqlTableSchemasWidget())
-                                        .child(new NoteDetailWidget())
-                                        .child(new NoteListWidget())
-                                        .child(new SearchResultWidget())
-                                        .child(new SqlResultWidget())
-                                )
-                                .child(new EditableCodeButtonsWidget())
-                                .child(new ApiLogWidget())
-                                .child(new FindWidget())
-                                .child(...this.customWidgets.get('node-detail-pane'))
-                        )
+                                new NoteWrapperWidget()
+                                    .child(new FlexContainer('row').class('title-row')
+                                        .css("height", "50px")
+                                        .css("min-height", "50px")
+                                        .css('align-items', "center")
+                                        .cssBlock('.title-row > * { margin: 5px; }')
+                                        .child(new NoteIconWidget())
+                                        .child(new NoteTitleWidget())
+                                        .child(new SpacerWidget(0, 1))
+                                        .child(new ClosePaneButton())
+                                        .child(new CreatePaneButton())
+                                    )
+                                    .child(
+                                        new RibbonContainer()
+                                            .ribbon(new ScriptExecutorWidget())
+                                            .ribbon(new SearchDefinitionWidget())
+                                            .ribbon(new EditedNotesWidget())
+                                            .ribbon(new BookPropertiesWidget())
+                                            .ribbon(new NotePropertiesWidget())
+                                            .ribbon(new FilePropertiesWidget())
+                                            .ribbon(new ImagePropertiesWidget())
+                                            .ribbon(new PromotedAttributesWidget())
+                                            .ribbon(new BasicPropertiesWidget())
+                                            .ribbon(new OwnedAttributeListWidget())
+                                            .ribbon(new InheritedAttributesWidget())
+                                            .ribbon(new NotePathsWidget())
+                                            .ribbon(new NoteMapRibbonWidget())
+                                            .ribbon(new SimilarNotesWidget())
+                                            .ribbon(new NoteInfoWidget())
+                                            .button(new NoteRevisionsButton())
+                                            .button(new NoteActionsWidget())
+                                    )
+                                    .child(new SharedInfoWidget())
+                                    .child(new NoteUpdateStatusWidget())
+                                    .child(new FloatingButtons()
+                                        .child(new EditButton())
+                                        .child(new CodeButtonsWidget())
+                                        .child(new RelationMapButtons())
+                                        .child(new MermaidExportButton())
+                                        .child(new BacklinksWidget())
+                                        .child(new HideFloatingButtonsButton())
+                                    )
+                                    .child(new MermaidWidget())
+                                    .child(
+                                        new ScrollingContainer()
+                                            .filling()
+                                            .child(new SqlTableSchemasWidget())
+                                            .child(new NoteDetailWidget())
+                                            .child(new NoteListWidget())
+                                            .child(new SearchResultWidget())
+                                            .child(new SqlResultWidget())
+                                    )
+                                    .child(new ApiLogWidget())
+                                    .child(new FindWidget())
+                                    .child(
+                                        ...this.customWidgets.get('node-detail-pane'), // typo, let's keep it for a while as BC
+                                        ...this.customWidgets.get('note-detail-pane')
+                                    )
+                            )
                         )
                         .child(...this.customWidgets.get('center-pane'))
                     )
@@ -239,7 +210,6 @@ export default class DesktopLayout {
             .child(new DeleteNotesDialog())
             .child(new InfoDialog())
             .child(new ConfirmDialog())
-            .child(new PromptDialog())
-            .child(new OptionsDialog());
+            .child(new PromptDialog());
     }
 }

@@ -10,6 +10,83 @@ const becca = require('../../../becca/becca');
 const beccaService = require('../../../becca/becca_service');
 const utils = require('../../utils');
 const log = require('../../log');
+const scriptService = require("../../script");
+
+function searchFromNote(note) {
+    let searchResultNoteIds, highlightedTokens;
+
+    const searchScript = note.getRelationValue('searchScript');
+    const searchString = note.getLabelValue('searchString');
+    let error = null;
+
+    if (searchScript) {
+        searchResultNoteIds = searchFromRelation(note, 'searchScript');
+        highlightedTokens = [];
+    } else {
+        const searchContext = new SearchContext({
+            fastSearch: note.hasLabel('fastSearch'),
+            ancestorNoteId: note.getRelationValue('ancestor'),
+            ancestorDepth: note.getLabelValue('ancestorDepth'),
+            includeArchivedNotes: note.hasLabel('includeArchivedNotes'),
+            orderBy: note.getLabelValue('orderBy'),
+            orderDirection: note.getLabelValue('orderDirection'),
+            limit: note.getLabelValue('limit'),
+            debug: note.hasLabel('debug'),
+            fuzzyAttributeSearch: false
+        });
+
+        searchResultNoteIds = findResultsWithQuery(searchString, searchContext)
+            .map(sr => sr.noteId);
+
+        highlightedTokens = searchContext.highlightedTokens;
+        error = searchContext.getError();
+    }
+
+    // we won't return search note's own noteId
+    // also don't allow root since that would force infinite cycle
+    return {
+        searchResultNoteIds: searchResultNoteIds.filter(resultNoteId => !['root', note.noteId].includes(resultNoteId)),
+        highlightedTokens,
+        error: error
+    };
+}
+
+function searchFromRelation(note, relationName) {
+    const scriptNote = note.getRelationTarget(relationName);
+
+    if (!scriptNote) {
+        log.info(`Search note's relation ${relationName} has not been found.`);
+
+        return [];
+    }
+
+    if (!scriptNote.isJavaScript() || scriptNote.getScriptEnv() !== 'backend') {
+        log.info(`Note ${scriptNote.noteId} is not executable.`);
+
+        return [];
+    }
+
+    if (!note.isContentAvailable()) {
+        log.info(`Note ${scriptNote.noteId} is not available outside of protected session.`);
+
+        return [];
+    }
+
+    const result = scriptService.executeNote(scriptNote, { originEntity: note });
+
+    if (!Array.isArray(result)) {
+        log.info(`Result from ${scriptNote.noteId} is not an array.`);
+
+        return [];
+    }
+
+    if (result.length === 0) {
+        return [];
+    }
+
+    // we expect either array of noteIds (strings) or notes, in that case we extract noteIds ourselves
+    return typeof result[0] === 'string' ? result : result.map(item => item.noteId);
+}
 
 function loadNeededInfoFromDatabase() {
     const sql = require('../../sql');
@@ -74,7 +151,7 @@ function findResultsWithExpression(expression, searchContext) {
         noteIdToNotePath: {}
     };
 
-    const noteSet = expression.execute(allNoteSet, executionContext);
+    const noteSet = expression.execute(allNoteSet, executionContext, searchContext);
 
     const searchResults = noteSet.notes
         .map(note => {
@@ -88,16 +165,12 @@ function findResultsWithExpression(expression, searchContext) {
                 throw new Error(`Can't find note path for note ${JSON.stringify(note.getPojo())}`);
             }
 
-            if (notePathArray.includes("hidden")) {
-                return null;
-            }
-
             return new SearchResult(notePathArray);
         })
         .filter(note => !!note);
 
     for (const res of searchResults) {
-        res.computeScore(searchContext.highlightedTokens);
+        res.computeScore(searchContext.fulltextQuery, searchContext.highlightedTokens);
     }
 
     if (!noteSet.sorted) {
@@ -122,8 +195,18 @@ function findResultsWithExpression(expression, searchContext) {
 }
 
 function parseQueryToExpression(query, searchContext) {
-    const {fulltextTokens, expressionTokens} = lex(query);
-    const structuredExpressionTokens = handleParens(expressionTokens);
+    const {fulltextQuery, fulltextTokens, expressionTokens} = lex(query);
+    searchContext.fulltextQuery = fulltextQuery;
+
+    let structuredExpressionTokens;
+
+    try {
+        structuredExpressionTokens = handleParens(expressionTokens);
+    }
+    catch (e) {
+        structuredExpressionTokens = [];
+        searchContext.addError(e.message);
+    }
 
     const expression = parse({
         fulltextTokens,
@@ -139,7 +222,7 @@ function parseQueryToExpression(query, searchContext) {
             expression
         };
 
-        log.info("Search debug: " + JSON.stringify(searchContext.debugInfo, null, 4));
+        log.info(`Search debug: ${JSON.stringify(searchContext.debugInfo, null, 4)}`);
     }
 
     return expression;
@@ -272,15 +355,15 @@ function highlightSearchResults(searchResults, highlightedTokens) {
 
 function formatAttribute(attr) {
     if (attr.type === 'relation') {
-        return '~' + utils.escapeHtml(attr.name) + "=…";
+        return `~${utils.escapeHtml(attr.name)}=…`;
     }
     else if (attr.type === 'label') {
-        let label = '#' + utils.escapeHtml(attr.name);
+        let label = `#${utils.escapeHtml(attr.name)}`;
 
         if (attr.value) {
-            const val = /[^\w_-]/.test(attr.value) ? '"' + attr.value + '"' : attr.value;
+            const val = /[^\w_-]/.test(attr.value) ? `"${attr.value}"` : attr.value;
 
-            label += '=' + utils.escapeHtml(val);
+            label += `=${utils.escapeHtml(val)}`;
         }
 
         return label;
@@ -288,6 +371,7 @@ function formatAttribute(attr) {
 }
 
 module.exports = {
+    searchFromNote,
     searchNotesForAutocomplete,
     findResultsWithQuery,
     findFirstNoteWithQuery,

@@ -3,16 +3,19 @@
 const sqlInit = require('../services/sql_init');
 const setupService = require('../services/setup');
 const utils = require('../services/utils');
+const assetPath = require("../services/asset_path");
+const appPath = require("../services/app_path.js");
 
 function setupPage(req, res) {
     if (sqlInit.isDbInitialized()) {
         if (utils.isElectron()) {
             const windowService = require('../services/window');
-            windowService.createMainWindow();
+            const {app} = require('electron');
+            windowService.createMainWindow(app);
             windowService.closeSetupWindow();
         }
         else {
-            res.redirect('/');
+            res.redirect('.');
         }
 
         return;
@@ -28,7 +31,9 @@ function setupPage(req, res) {
     }
 
     res.render('setup', {
-        syncInProgress: syncInProgress
+        syncInProgress: syncInProgress,
+        assetPath: assetPath,
+        appPath: appPath
     });
 }
 

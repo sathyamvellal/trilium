@@ -18,7 +18,9 @@ const Branch = require('../becca/entities/branch');
 const Note = require('../becca/entities/note');
 const Attribute = require('../becca/entities/attribute');
 const dayjs = require("dayjs");
-const htmlSanitizer = require("./html_sanitizer.js");
+const htmlSanitizer = require("./html_sanitizer");
+const ValidationError = require("../errors/validation_error");
+const noteTypesService = require("./note_types");
 
 function getNewNotePosition(parentNoteId) {
     const note = becca.notes[parentNoteId];
@@ -31,10 +33,6 @@ function getNewNotePosition(parentNoteId) {
         .reduce((max, note) => Math.max(max, note.notePosition), 0);
 
     return maxNotePos + 10;
-}
-
-function triggerChildNoteCreated(childNote, parentNote) {
-    eventService.emit(eventService.CHILD_NOTE_CREATED, { childNote, parentNote });
 }
 
 function triggerNoteTitleChanged(note) {
@@ -50,19 +48,7 @@ function deriveMime(type, mime) {
         return mime;
     }
 
-    if (type === 'text') {
-        mime = 'text/html';
-    } else if (type === 'code' || type === 'mermaid') {
-        mime = 'text/plain';
-    } else if (['relation-map', 'search', 'canvas'].includes(type)) {
-        mime = 'application/json';
-    } else if (['render', 'book', 'web-view'].includes(type)) {
-        mime = '';
-    } else {
-        mime = 'application/octet-stream';
-    }
-
-    return mime;
+    return noteTypesService.getDefaultMimeForNoteType(type);
 }
 
 function copyChildAttributes(parentNote, childNote) {
@@ -93,7 +79,7 @@ function getNewNoteTitle(parentNote) {
             // - now
             // - parentNote
 
-            title = eval('`' + titleTemplate + '`');
+            title = eval(`\`${titleTemplate}\``);
         } catch (e) {
             log.error(`Title template of note '${parentNote.noteId}' failed with: ${e.message}`);
         }
@@ -107,12 +93,34 @@ function getNewNoteTitle(parentNote) {
     return title;
 }
 
+function getAndValidateParent(params) {
+    const parentNote = becca.notes[params.parentNoteId];
+
+    if (!parentNote) {
+        throw new ValidationError(`Parent note "${params.parentNoteId}" not found.`);
+    }
+
+    if (parentNote.type === 'launcher' && parentNote.noteId !== '_lbBookmarks') {
+        throw new ValidationError(`Creating child notes into launcher notes is not allowed.`);
+    }
+
+    if (['_lbAvailableLaunchers', '_lbVisibleLaunchers'].includes(params.parentNoteId) && params.type !== 'launcher') {
+        throw new ValidationError(`Only 'launcher' notes can be created in parent '${params.parentNoteId}'`);
+    }
+
+    if (!params.ignoreForbiddenParents && (['_lbRoot', '_hidden'].includes(parentNote.noteId) || parentNote.isOptions())) {
+        throw new ValidationError(`Creating child notes into '${parentNote.noteId}' is not allowed.`);
+    }
+
+    return parentNote;
+}
+
 /**
  * Following object properties are mandatory:
  * - {string} parentNoteId
  * - {string} title
  * - {*} content
- * - {string} type - text, code, file, image, search, book, relation-map, canvas, render
+ * - {string} type - text, code, file, image, search, book, relationMap, canvas, render
  *
  * Following are optional (have defaults)
  * - {string} mime - value is derived from default mimes for type
@@ -125,11 +133,7 @@ function getNewNoteTitle(parentNote) {
  * @return {{note: Note, branch: Branch}}
  */
 function createNewNote(params) {
-    const parentNote = becca.notes[params.parentNoteId];
-
-    if (!parentNote) {
-        throw new Error(`Parent note "${params.parentNoteId}" not found.`);
-    }
+    const parentNote = getAndValidateParent(params);
 
     if (params.title === null || params.title === undefined) {
         params.title = getNewNoteTitle(parentNote);
@@ -140,24 +144,45 @@ function createNewNote(params) {
     }
 
     return sql.transactional(() => {
-        const note = new Note({
-            noteId: params.noteId, // optionally can force specific noteId
-            title: params.title,
-            isProtected: !!params.isProtected,
-            type: params.type,
-            mime: deriveMime(params.type, params.mime)
-        }).save();
+        let note, branch, isEntityEventsDisabled;
 
-        note.setContent(params.content);
+        try {
+            isEntityEventsDisabled = cls.isEntityEventsDisabled();
 
-        const branch = new Branch({
-            branchId: params.branchId,
-            noteId: note.noteId,
-            parentNoteId: params.parentNoteId,
-            notePosition: params.notePosition !== undefined ? params.notePosition : getNewNotePosition(params.parentNoteId),
-            prefix: params.prefix,
-            isExpanded: !!params.isExpanded
-        }).save();
+            if (!isEntityEventsDisabled) {
+                // it doesn't make sense to run note creation events on a partially constructed note, so
+                // defer them until note creation is completed
+                cls.disableEntityEvents();
+            }
+
+            // TODO: think about what can happen if the note already exists with the forced ID
+            //       I guess on DB it's going to be fine, but becca references between entities
+            //       might get messed up (two Note instance for the same ID existing in the references)
+            note = new Note({
+                noteId: params.noteId, // optionally can force specific noteId
+                title: params.title,
+                isProtected: !!params.isProtected,
+                type: params.type,
+                mime: deriveMime(params.type, params.mime)
+            }).save();
+
+            note.setContent(params.content);
+
+            branch = new Branch({
+                noteId: note.noteId,
+                parentNoteId: params.parentNoteId,
+                notePosition: params.notePosition !== undefined ? params.notePosition : getNewNotePosition(params.parentNoteId),
+                prefix: params.prefix,
+                isExpanded: !!params.isExpanded
+            }).save();
+        }
+        finally {
+            if (!isEntityEventsDisabled) {
+                // re-enable entity events only if there were previously enabled
+                // (they can be disabled in case of import)
+                cls.enableEntityEvents();
+            }
+        }
 
         scanForLinks(note);
 
@@ -175,7 +200,26 @@ function createNewNote(params) {
         }
 
         triggerNoteTitleChanged(note);
-        triggerChildNoteCreated(note, parentNote);
+
+        eventService.emit(eventService.ENTITY_CREATED, {
+            entityName: 'notes',
+            entity: note
+        });
+
+        eventService.emit(eventService.ENTITY_CREATED, {
+            entityName: 'note_contents',
+            entity: note
+        });
+
+        eventService.emit(eventService.ENTITY_CREATED, {
+            entityName: 'branches',
+            entity: branch
+        });
+
+        eventService.emit(eventService.CHILD_NOTE_CREATED, {
+            childNote: note,
+            parentNote: parentNote
+        });
 
         log.info(`Created new note '${note.noteId}', branch '${branch.branchId}' of type '${note.type}', mime '${note.mime}'`);
 
@@ -246,14 +290,14 @@ function protectNote(note, protect) {
         noteRevisionService.protectNoteRevisions(note);
     }
     catch (e) {
-        log.error("Could not un/protect note ID = " + note.noteId);
+        log.error(`Could not un/protect note ID = ${note.noteId}`);
 
         throw e;
     }
 }
 
 function findImageLinks(content, foundLinks) {
-    const re = /src="[^"]*api\/images\/([a-zA-Z0-9]+)\//g;
+    const re = /src="[^"]*api\/images\/([a-zA-Z0-9_]+)\//g;
     let match;
 
     while (match = re.exec(content)) {
@@ -269,7 +313,7 @@ function findImageLinks(content, foundLinks) {
 }
 
 function findInternalLinks(content, foundLinks) {
-    const re = /href="[^"]*#root[a-zA-Z0-9\/]*\/([a-zA-Z0-9]+)\/?"/g;
+    const re = /href="[^"]*#root[a-zA-Z0-9_\/]*\/([a-zA-Z0-9_]+)\/?"/g;
     let match;
 
     while (match = re.exec(content)) {
@@ -284,7 +328,7 @@ function findInternalLinks(content, foundLinks) {
 }
 
 function findIncludeNoteLinks(content, foundLinks) {
-    const re = /<section class="include-note[^>]+data-note-id="([a-zA-Z0-9]+)"[^>]*>/g;
+    const re = /<section class="include-note[^>]+data-note-id="([a-zA-Z0-9_]+)"[^>]*>/g;
     let match;
 
     while (match = re.exec(content)) {
@@ -360,9 +404,7 @@ function downloadImages(noteId, content) {
 
             const sanitizedTitle = note.title.replace(/[^a-z0-9-.]/gi, "");
 
-            content = content.substr(0, imageMatch.index)
-                + `<img src="api/images/${note.noteId}/${sanitizedTitle}"`
-                + content.substr(imageMatch.index + imageMatch[0].length);
+            content = `${content.substr(0, imageMatch.index)}<img src="api/images/${note.noteId}/${sanitizedTitle}"${content.substr(imageMatch.index + imageMatch[0].length)}`;
         }
         else if (!url.includes('api/images/')
             // this is an exception for the web clipper's "imageId"
@@ -407,7 +449,7 @@ function downloadImages(noteId, content) {
             // which will get asynchronously downloaded, during that time they keep editing the note
             // once the download is finished, the image note representing downloaded image will be used
             // to replace the IMG link.
-            // However there's another flow where user pastes the image and leaves the note before the images
+            // However, there's another flow where user pastes the image and leaves the note before the images
             // are downloaded and the IMG references are not updated. For this occassion we have this code
             // which upon the download of all the images will update the note if the links have not been fixed before
 
@@ -438,6 +480,11 @@ function downloadImages(noteId, content) {
 
                     scanForLinks(origNote);
 
+                    eventService.emit(eventService.ENTITY_CHANGED, {
+                        entityName: 'note_contents',
+                        entity: origNote
+                    });
+
                     console.log(`Fixed the image links for note '${noteId}' to the offline saved.`);
                 }
             });
@@ -448,7 +495,7 @@ function downloadImages(noteId, content) {
 }
 
 function saveLinks(note, content) {
-    if (note.type !== 'text' && note.type !== 'relation-map') {
+    if (note.type !== 'text' && note.type !== 'relationMap') {
         return content;
     }
 
@@ -465,11 +512,11 @@ function saveLinks(note, content) {
         content = findInternalLinks(content, foundLinks);
         content = findIncludeNoteLinks(content, foundLinks);
     }
-    else if (note.type === 'relation-map') {
+    else if (note.type === 'relationMap') {
         findRelationMapLinks(content, foundLinks);
     }
     else {
-        throw new Error("Unrecognized type " + note.type);
+        throw new Error(`Unrecognized type ${note.type}`);
     }
 
     const existingLinks = note.getRelations().filter(rel =>
@@ -543,6 +590,11 @@ function updateNoteContent(noteId, content) {
     content = saveLinks(note, content);
 
     note.setContent(content);
+
+    eventService.emit(eventService.ENTITY_CHANGED, {
+        entityName: 'note_contents',
+        entity: note
+    });
 }
 
 /**
@@ -636,7 +688,7 @@ function getUndeletedParentBranchIds(noteId, deleteId) {
 }
 
 function scanForLinks(note) {
-    if (!note || !['text', 'relation-map'].includes(note.type)) {
+    if (!note || !['text', 'relationMap'].includes(note.type)) {
         return;
     }
 
@@ -735,10 +787,6 @@ function eraseDeletedEntities(eraseEntitiesAfterTimeInSeconds = null) {
         const attributeIdsToErase = sql.getColumn("SELECT attributeId FROM attributes WHERE isDeleted = 1 AND utcDateModified <= ?", [dateUtils.utcDateTimeStr(cutoffDate)]);
 
         eraseAttributes(attributeIdsToErase);
-
-        if (noteIdsToErase.length > 0 || branchIdsToErase.length > 0 || attributeIdsToErase.length > 0) {
-            require('../becca/becca_loader').reload();
-        }
     });
 }
 
@@ -754,10 +802,6 @@ function eraseNotesWithDeleteId(deleteId) {
     const attributeIdsToErase = sql.getColumn("SELECT attributeId FROM attributes WHERE  deleteId = ?", [deleteId]);
 
     eraseAttributes(attributeIdsToErase);
-
-    if (noteIdsToErase.length > 0 || branchIdsToErase.length > 0 || attributeIdsToErase.length > 0) {
-        require('../becca/becca_loader').reload();
-    }
 }
 
 function eraseDeletedNotesNow() {
@@ -834,7 +878,7 @@ function duplicateSubtreeInner(origNote, origBranch, newParentNoteId, noteIdMapp
 
         let content = origNote.getContent();
 
-        if (['text', 'relation-map', 'search'].includes(origNote.type)) {
+        if (['text', 'relationMap', 'search'].includes(origNote.type)) {
             // fix links in the content
             content = replaceByMap(content, noteIdMapping);
         }

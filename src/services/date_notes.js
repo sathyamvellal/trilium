@@ -9,6 +9,7 @@ const protectedSessionService = require('./protected_session');
 const cls = require("./cls");
 const searchService = require('../services/search/services/search');
 const SearchContext = require('../services/search/search_context');
+const hoistedNoteService = require("./hoisted_note");
 
 const CALENDAR_ROOT_LABEL = 'calendarRoot';
 const YEAR_LABEL = 'yearNote';
@@ -32,7 +33,9 @@ function createNote(parentNote, noteTitle) {
 function getRootCalendarNote() {
     let rootNote;
 
-    if (cls.getHoistedNoteId() !== 'root') {
+    const workspaceNote = hoistedNoteService.getWorkspaceNote();
+
+    if (!workspaceNote.isRoot()) {
         rootNote = searchService.findFirstNoteWithQuery('#workspaceCalendarRoot', new SearchContext({ignoreHoistedNote: false}));
     }
 
@@ -150,8 +153,11 @@ function getDayNoteTitle(rootNote, dayNumber, dateObj) {
 }
 
 /** @returns {Note} */
-function getDayNote(dateStr) {
-    const rootNote = getRootCalendarNote();
+function getDayNote(dateStr, rootNote = null) {
+    if (!rootNote) {
+        rootNote = getRootCalendarNote();
+    }
+
     dateStr = dateStr.trim().substr(0, 10);
 
     let dateNote = searchService.findFirstNoteWithQuery(`#${DATE_LABEL}="${dateStr}"`,
@@ -183,8 +189,8 @@ function getDayNote(dateStr) {
     return dateNote;
 }
 
-function getTodayNote() {
-    return getDayNote(dateUtils.localNowDate());
+function getTodayNote(rootNote = null) {
+    return getDayNote(dateUtils.localNowDate(), rootNote);
 }
 
 function getStartOfTheWeek(date, startOfTheWeek) {
@@ -198,20 +204,20 @@ function getStartOfTheWeek(date, startOfTheWeek) {
         diff = date.getDate() - day;
     }
     else {
-        throw new Error("Unrecognized start of the week " + startOfTheWeek);
+        throw new Error(`Unrecognized start of the week ${startOfTheWeek}`);
     }
 
     return new Date(date.setDate(diff));
 }
 
-function getWeekNote(dateStr, options = {}) {
+function getWeekNote(dateStr, options = {}, rootNote = null) {
     const startOfTheWeek = options.startOfTheWeek || "monday";
 
     const dateObj = getStartOfTheWeek(dateUtils.parseLocalDate(dateStr), startOfTheWeek);
 
     dateStr = dateUtils.utcDateTimeStr(dateObj);
 
-    return getDayNote(dateStr);
+    return getDayNote(dateStr, rootNote);
 }
 
 module.exports = {

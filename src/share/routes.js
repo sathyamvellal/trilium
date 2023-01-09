@@ -6,6 +6,8 @@ const shaca = require("./shaca/shaca");
 const shacaLoader = require("./shaca/shaca_loader");
 const shareRoot = require("./share_root");
 const contentRenderer = require("./content_renderer");
+const assetPath = require("../services/asset_path");
+const appPath = require("../services/app_path");
 
 function getSharedSubTreeRoot(note) {
     if (note.noteId === shareRoot.SHARE_ROOT_NOTE_ID) {
@@ -39,9 +41,15 @@ function checkNoteAccess(noteId, req, res) {
     const note = shaca.getNote(noteId);
 
     if (!note) {
-        res.setHeader("Content-Type", "text/plain")
-            .status(404)
-            .send(`Note '${noteId}' not found`);
+        res.status(404)
+            .json({ message: `Note '${noteId}' not found` });
+
+        return false;
+    }
+
+    if (noteId === '_share' && !shaca.shareIndexEnabled) {
+        res.status(403)
+            .json({ message: `Accessing share index is forbidden.` });
 
         return false;
     }
@@ -87,7 +95,7 @@ function register(router) {
 
         addNoIndexHeader(note, res);
 
-        if (note.hasLabel('shareRaw') || ['image', 'file'].includes(note.type)) {
+        if (note.hasLabel('shareRaw')) {
             res.setHeader('Content-Type', note.mime)
                 .send(note.getContent());
 
@@ -103,13 +111,20 @@ function register(router) {
             header,
             content,
             isEmpty,
-            subRoot
+            subRoot,
+            assetPath,
+            appPath
         });
     }
 
     router.use('/share/canvas_share.js', express.static(path.join(__dirname, 'canvas_share.js')));
 
-    router.get(['/share', '/share/'], (req, res, next) => {
+    router.get('/share/', (req, res, next) => {
+        if (req.path.substr(-1) !== '/') {
+            res.redirect('../share/');
+            return;
+        }
+
         shacaLoader.ensureLoad();
 
         renderNote(shaca.shareRootNote, req, res);
@@ -177,9 +192,8 @@ function register(router) {
         }
 
         if (!["image", "canvas"].includes(image.type)) {
-            return res.setHeader('Content-Type', 'text/plain')
-                .status(400)
-                .send("Requested note is not a shareable image");
+            return res.status(400)
+                .json({ message: "Requested note is not a shareable image" });
         } else if (image.type === "canvas") {
             /**
              * special "image" type. the canvas is actually type application/json
@@ -194,10 +208,9 @@ function register(router) {
                 res.set('Content-Type', "image/svg+xml");
                 res.set("Cache-Control", "no-cache, no-store, must-revalidate");
                 res.send(svg);
-            } catch(err) {
-                res.setHeader('Content-Type', 'text/plain')
-                    .status(500)
-                    .send("there was an error parsing excalidraw to svg");
+            } catch (err) {
+                res.status(500)
+                    .json({ message: "There was an error parsing excalidraw to svg." });
             }
         } else {
             // normal image

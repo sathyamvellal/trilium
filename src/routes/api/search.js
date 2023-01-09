@@ -2,54 +2,18 @@
 
 const becca = require('../../becca/becca');
 const SearchContext = require('../../services/search/search_context');
-const log = require('../../services/log');
-const scriptService = require('../../services/script');
 const searchService = require('../../services/search/services/search');
 const bulkActionService = require("../../services/bulk_actions");
 const cls = require("../../services/cls");
 const {formatAttrForSearch} = require("../../services/attribute_formatter");
-
-function searchFromNoteInt(note) {
-    let searchResultNoteIds, highlightedTokens;
-
-    const searchScript = note.getRelationValue('searchScript');
-    const searchString = note.getLabelValue('searchString');
-
-    if (searchScript) {
-        searchResultNoteIds = searchFromRelation(note, 'searchScript');
-        highlightedTokens = [];
-    } else {
-        const searchContext = new SearchContext({
-            fastSearch: note.hasLabel('fastSearch'),
-            ancestorNoteId: note.getRelationValue('ancestor'),
-            ancestorDepth: note.getLabelValue('ancestorDepth'),
-            includeArchivedNotes: note.hasLabel('includeArchivedNotes'),
-            orderBy: note.getLabelValue('orderBy'),
-            orderDirection: note.getLabelValue('orderDirection'),
-            limit: note.getLabelValue('limit'),
-            debug: note.hasLabel('debug'),
-            fuzzyAttributeSearch: false
-        });
-
-        searchResultNoteIds = searchService.findResultsWithQuery(searchString, searchContext)
-            .map(sr => sr.noteId);
-
-        highlightedTokens = searchContext.highlightedTokens;
-    }
-
-    // we won't return search note's own noteId
-    // also don't allow root since that would force infinite cycle
-    return {
-        searchResultNoteIds: searchResultNoteIds.filter(resultNoteId => !['root', note.noteId].includes(resultNoteId)),
-        highlightedTokens
-    };
-}
+const ValidationError = require("../../errors/validation_error");
+const NotFoundError = require("../../errors/not_found_error");
 
 function searchFromNote(req) {
     const note = becca.getNote(req.params.noteId);
 
     if (!note) {
-        return [404, `Note ${req.params.noteId} has not been found.`];
+        throw new NotFoundError(`Note '${req.params.noteId}' has not been found.`);
     }
 
     if (note.isDeleted) {
@@ -58,68 +22,31 @@ function searchFromNote(req) {
     }
 
     if (note.type !== 'search') {
-        return [400, `Note ${req.params.noteId} is not a search note.`]
+        throw new ValidationError(`Note '${req.params.noteId}' is not a search note.`);
     }
 
-    return searchFromNoteInt(note);
+    return searchService.searchFromNote(note);
 }
 
 function searchAndExecute(req) {
     const note = becca.getNote(req.params.noteId);
 
     if (!note) {
-        return [404, `Note ${req.params.noteId} has not been found.`];
+        throw new NotFoundError(`Note '${req.params.noteId}' has not been found.`);
     }
 
     if (note.isDeleted) {
-        // this can be triggered from recent changes and it's harmless to return empty list rather than fail
+        // this can be triggered from recent changes, and it's harmless to return empty list rather than fail
         return [];
     }
 
     if (note.type !== 'search') {
-        return [400, `Note ${req.params.noteId} is not a search note.`]
+        throw new ValidationError(`Note '${req.params.noteId}' is not a search note.`);
     }
 
-    const {searchResultNoteIds} = searchFromNoteInt(note);
+    const {searchResultNoteIds} = searchService.searchFromNote(note);
 
     bulkActionService.executeActions(note, searchResultNoteIds);
-}
-
-function searchFromRelation(note, relationName) {
-    const scriptNote = note.getRelationTarget(relationName);
-
-    if (!scriptNote) {
-        log.info(`Search note's relation ${relationName} has not been found.`);
-
-        return [];
-    }
-
-    if (!scriptNote.isJavaScript() || scriptNote.getScriptEnv() !== 'backend') {
-        log.info(`Note ${scriptNote.noteId} is not executable.`);
-
-        return [];
-    }
-
-    if (!note.isContentAvailable()) {
-        log.info(`Note ${scriptNote.noteId} is not available outside of protected session.`);
-
-        return [];
-    }
-
-    const result = scriptService.executeNote(scriptNote, { originEntity: note });
-
-    if (!Array.isArray(result)) {
-        log.info(`Result from ${scriptNote.noteId} is not an array.`);
-
-        return [];
-    }
-
-    if (result.length === 0) {
-        return [];
-    }
-
-    // we expect either array of noteIds (strings) or notes, in that case we extract noteIds ourselves
-    return typeof result[0] === 'string' ? result : result.map(item => item.noteId);
 }
 
 function quickSearch(req) {
@@ -131,8 +58,13 @@ function quickSearch(req) {
         fuzzyAttributeSearch: false
     });
 
-    return searchService.findResultsWithQuery(searchString, searchContext)
+    const resultNoteIds = searchService.findResultsWithQuery(searchString, searchContext)
         .map(sr => sr.noteId);
+
+    return {
+        searchResultNoteIds: resultNoteIds,
+        error: searchContext.getError()
+    };
 }
 
 function search(req) {

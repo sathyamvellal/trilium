@@ -16,7 +16,6 @@ const TPL = `
             position: absolute;
             right: 5px;
             bottom: 5px;
-            font-size: 180%;
             z-index: 1000;
         }
         
@@ -46,10 +45,6 @@ export default class NoteMapRibbonWidget extends NoteContextAwareWidget {
 
     get toggleCommand() {
         return "toggleRibbonTabNoteMap";
-    }
-
-    isEnabled() {
-        return this.note;
     }
 
     getTitle() {

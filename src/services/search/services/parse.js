@@ -12,12 +12,13 @@ const PropertyComparisonExp = require('../expressions/property_comparison');
 const AttributeExistsExp = require('../expressions/attribute_exists');
 const LabelComparisonExp = require('../expressions/label_comparison');
 const NoteFlatTextExp = require('../expressions/note_flat_text');
-const NoteContentFulltextExp = require('../expressions/note_content_fulltext.js');
+const NoteContentFulltextExp = require('../expressions/note_content_fulltext');
 const OrderByAndLimitExp = require('../expressions/order_by_and_limit');
 const AncestorExp = require("../expressions/ancestor");
 const buildComparator = require('./build_comparator');
 const ValueExtractor = require('../value_extractor');
 const utils = require("../../utils");
+const TrueExp = require("../expressions/true.js");
 
 function getFulltext(tokens, searchContext) {
     tokens = tokens.map(t => utils.removeDiacritic(t.token));
@@ -39,12 +40,25 @@ function getFulltext(tokens, searchContext) {
     }
 }
 
+const OPERATORS = [
+    "=",
+    "!=",
+    "*=*",
+    "*=",
+    "=*",
+    ">",
+    ">=",
+    "<",
+    "<=",
+    "%="
+];
+
 function isOperator(token) {
     if (Array.isArray(token)) {
         return false;
     }
 
-    return token.token.match(/^[!=<>*%]+$/);
+    return OPERATORS.includes(token.token);
 }
 
 function getExpression(tokens, searchContext, level = 0) {
@@ -62,9 +76,7 @@ function getExpression(tokens, searchContext, level = 0) {
         startIndex = Math.max(0, startIndex - 20);
         endIndex = Math.min(searchContext.originalQuery.length, endIndex + 20);
 
-        return '"' + (startIndex !== 0 ? "..." : "")
-            + searchContext.originalQuery.substr(startIndex, endIndex - startIndex)
-            + (endIndex !== searchContext.originalQuery.length ? "..." : "") + '"';
+        return `"${startIndex !== 0 ? "..." : ""}${searchContext.originalQuery.substr(startIndex, endIndex - startIndex)}${endIndex !== searchContext.originalQuery.length ? "..." : ""}"`;
     }
 
     function resolveConstantOperand() {
@@ -114,7 +126,7 @@ function getExpression(tokens, searchContext, level = 0) {
             format = "YYYY";
         }
         else {
-            throw new Error("Unrecognized keyword: " + operand.token);
+            throw new Error(`Unrecognized keyword: ${operand.token}`);
         }
 
         return date.format(format);
@@ -404,11 +416,22 @@ function getExpression(tokens, searchContext, level = 0) {
 }
 
 function parse({fulltextTokens, expressionTokens, searchContext}) {
+    let expression;
+
+    try {
+        expression = getExpression(expressionTokens, searchContext);
+    }
+    catch (e) {
+        searchContext.addError(e.message);
+
+        expression = new TrueExp();
+    }
+
     let exp = AndExp.of([
         searchContext.includeArchivedNotes ? null : new PropertyComparisonExp(searchContext, "isarchived", "=", "false"),
         (searchContext.ancestorNoteId && searchContext.ancestorNoteId !== 'root') ? new AncestorExp(searchContext.ancestorNoteId, searchContext.ancestorDepth) : null,
         getFulltext(fulltextTokens, searchContext),
-        getExpression(expressionTokens, searchContext)
+        expression
     ]);
 
     if (searchContext.orderBy && searchContext.orderBy !== 'relevancy') {

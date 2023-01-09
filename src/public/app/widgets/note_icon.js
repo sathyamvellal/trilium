@@ -119,7 +119,7 @@ export default class NoteIconWidget extends NoteContextAwareWidget {
     }
 
     async refreshWithNote(note) {
-        this.$icon.removeClass().addClass(note.getIcon() + " note-icon");
+        this.$icon.removeClass().addClass(`${note.getIcon()} note-icon`);
     }
 
     async entitiesReloadedEvent({loadResults}) {
@@ -163,13 +163,17 @@ export default class NoteIconWidget extends NoteContextAwareWidget {
 
         const {icons} = (await import('./icon_list.js')).default;
 
+        search = search?.trim()?.toLowerCase();
+
         for (const icon of icons) {
             if (categoryId && icon.category_id !== categoryId) {
                 continue;
             }
 
-            if (search && search.trim() && !icon.name.includes(search.trim().toLowerCase())) {
-                continue;
+            if (search) {
+                if (!icon.name.includes(search) && !icon.term?.find(t => t.includes(search))) {
+                    continue;
+                }
             }
 
             this.$iconList.append(
@@ -189,13 +193,13 @@ export default class NoteIconWidget extends NoteContextAwareWidget {
 
     getIconClass(icon) {
         if (icon.type_of_icon === 'LOGO') {
-            return "bx bxl-" + icon.name;
+            return `bx bxl-${icon.name}`;
         }
         else if (icon.type_of_icon === 'SOLID') {
-            return "bx bxs-" + icon.name;
+            return `bx bxs-${icon.name}`;
         }
         else {
-            return "bx bx-" + icon.name;
+            return `bx bx-${icon.name}`;
         }
     }
 }

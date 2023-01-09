@@ -2,6 +2,7 @@
 
 const becca = require("../../becca/becca");
 const { JSDOM } = require("jsdom");
+const NotFoundError = require("../../errors/not_found_error");
 
 function buildDescendantCountMap() {
     const noteIdToCountMap = {};
@@ -37,7 +38,7 @@ function getNeighbors(note, depth) {
     const retNoteIds = [];
 
     function isIgnoredRelation(relation) {
-        return ['relationMapLink', 'template', 'image'].includes(relation.name);
+        return ['relationMapLink', 'template', 'image', 'ancestor'].includes(relation.name);
     }
 
     // forward links
@@ -48,7 +49,7 @@ function getNeighbors(note, depth) {
 
         const targetNote = relation.getTargetNote();
 
-        if (targetNote.hasLabel('excludeFromNoteMap')) {
+        if (!targetNote || targetNote.hasLabel('excludeFromNoteMap')) {
             continue;
         }
 
@@ -67,7 +68,7 @@ function getNeighbors(note, depth) {
 
         const sourceNote = relation.getNote();
 
-        if (sourceNote.hasLabel('excludeFromNoteMap')) {
+        if (!sourceNote || sourceNote.hasLabel('excludeFromNoteMap')) {
             continue;
         }
 
@@ -83,15 +84,31 @@ function getNeighbors(note, depth) {
 
 function getLinkMap(req) {
     const mapRootNote = becca.getNote(req.params.noteId);
-    // if the map root itself has ignore (journal typically) then there wouldn't be anything to display so
+    // if the map root itself has exclude attribute (journal typically) then there wouldn't be anything to display, so
     // we'll just ignore it
     const ignoreExcludeFromNoteMap = mapRootNote.hasLabel('excludeFromNoteMap');
+    let unfilteredNotes;
+
+    if (mapRootNote.type === 'search') {
+        // for search notes we want to consider the direct search results only without the descendants
+        unfilteredNotes = mapRootNote.getSearchResultNotes();
+    } else {
+        unfilteredNotes = mapRootNote.getSubtree({
+            includeArchived: false,
+            resolveSearch: true,
+            includeHidden: mapRootNote.isInHiddenSubtree()
+        }).notes;
+    }
 
     const noteIds = new Set(
-        mapRootNote.getSubtreeNotes(false)
+        unfilteredNotes
             .filter(note => ignoreExcludeFromNoteMap || !note.hasLabel('excludeFromNoteMap'))
             .map(note => note.noteId)
     );
+
+    if (mapRootNote.type === 'search') {
+        noteIds.delete(mapRootNote.noteId);
+    }
 
     for (const noteId of getNeighbors(mapRootNote, 3)) {
         noteIds.add(noteId);
@@ -103,7 +120,8 @@ function getLinkMap(req) {
         return [
             note.noteId,
             note.getTitleOrProtected(),
-            note.type
+            note.type,
+            note.getLabelValue('color')
         ];
     });
 
@@ -123,8 +141,8 @@ function getLinkMap(req) {
             return true;
         }
     })
-        .map(rel => ({
-        id: rel.noteId + "-" + rel.name + "-" + rel.value,
+    .map(rel => ({
+        id: `${rel.noteId}-${rel.name}-${rel.value}`,
         sourceNoteId: rel.noteId,
         targetNoteId: rel.value,
         name: rel.name
@@ -142,8 +160,13 @@ function getTreeMap(req) {
     // if the map root itself has ignore (journal typically) then there wouldn't be anything to display so
     // we'll just ignore it
     const ignoreExcludeFromNoteMap = mapRootNote.hasLabel('excludeFromNoteMap');
+    const subtree = mapRootNote.getSubtree({
+        includeArchived: false,
+        resolveSearch: true,
+        includeHidden: mapRootNote.isInHiddenSubtree()
+    });
 
-    const notes = mapRootNote.getSubtreeNotes(false)
+    const notes = subtree.notes
         .filter(note => ignoreExcludeFromNoteMap || !note.hasLabel('excludeFromNoteMap'))
         .filter(note => {
             if (note.type !== 'image' || note.getChildNotes().length > 0) {
@@ -158,11 +181,11 @@ function getTreeMap(req) {
 
             return !note.getParentNotes().find(parentNote => parentNote.noteId === imageLinkRelation.noteId);
         })
-        .concat(...mapRootNote.getParentNotes().filter(note => note.noteId !== 'none'))
         .map(note => [
             note.noteId,
             note.getTitleOrProtected(),
-            note.type
+            note.type,
+            note.getLabelValue('color')
         ]);
 
     const noteIds = new Set();
@@ -170,23 +193,38 @@ function getTreeMap(req) {
 
     const links = [];
 
-    for (const branch of Object.values(becca.branches)) {
-        if (!noteIds.has(branch.parentNoteId) || !noteIds.has(branch.noteId)) {
+    for (const {parentNoteId, childNoteId} of subtree.relationships) {
+        if (!noteIds.has(parentNoteId) || !noteIds.has(childNoteId)) {
             continue;
         }
 
         links.push({
-            id: branch.branchId,
-            sourceNoteId: branch.parentNoteId,
-            targetNoteId: branch.noteId
+            sourceNoteId: parentNoteId,
+            targetNoteId: childNoteId
         });
     }
 
+    const noteIdToDescendantCountMap = buildDescendantCountMap();
+
+    updateDescendantCountMapForSearch(noteIdToDescendantCountMap, subtree.relationships);
+
     return {
         notes: notes,
-        noteIdToDescendantCountMap: buildDescendantCountMap(),
+        noteIdToDescendantCountMap: noteIdToDescendantCountMap,
         links: links
     };
+}
+
+function updateDescendantCountMapForSearch(noteIdToDescendantCountMap, relationships) {
+    for (const {parentNoteId, childNoteId} of relationships) {
+        const parentNote = becca.notes[parentNoteId];
+        if (!parentNote || parentNote.type !== 'search') {
+            continue;
+        }
+
+        noteIdToDescendantCountMap[parentNote.noteId] = noteIdToDescendantCountMap[parentNoteId] || 0;
+        noteIdToDescendantCountMap[parentNote.noteId] += noteIdToDescendantCountMap[childNoteId] || 1;
+    }
 }
 
 function removeImages(document) {
@@ -237,7 +275,7 @@ function findExcerpts(sourceNote, referencedNoteId) {
                 if (prevText.length + excerptLength > EXCERPT_CHAR_LIMIT) {
                     const prefix = prevText.substr(prevText.length - (EXCERPT_CHAR_LIMIT - excerptLength));
 
-                    const textNode = document.createTextNode("…" + prefix);
+                    const textNode = document.createTextNode(`…${prefix}`);
                     excerptEls.unshift(textNode);
 
                     break;
@@ -257,7 +295,7 @@ function findExcerpts(sourceNote, referencedNoteId) {
                 if (nextText.length + excerptLength > EXCERPT_CHAR_LIMIT) {
                     const suffix = nextText.substr(nextText.length - (EXCERPT_CHAR_LIMIT - excerptLength));
 
-                    const textNode = document.createTextNode(suffix + "…");
+                    const textNode = document.createTextNode(`${suffix}…`);
                     excerptEls.push(textNode);
 
                     break;
@@ -287,19 +325,38 @@ function findExcerpts(sourceNote, referencedNoteId) {
     return excerpts;
 }
 
+function getFilteredBacklinks(note) {
+    return note.getTargetRelations()
+        // search notes have "ancestor" relations which are not interesting
+        .filter(relation => !!relation.getNote() && relation.getNote().type !== 'search');
+}
+
+function getBacklinkCount(req) {
+    const {noteId} = req.params;
+
+    const note = becca.getNote(noteId);
+
+    if (!note) {
+        throw new NotFoundError(`Note '${noteId}' not found`);
+    }
+    else {
+        return {
+            count: getFilteredBacklinks(note).length
+        };
+    }
+}
+
 function getBacklinks(req) {
     const {noteId} = req.params;
     const note = becca.getNote(noteId);
 
     if (!note) {
-        return [404, `Note ${noteId} was not found`];
+        throw new NotFoundError(`Note '${noteId}' was not found`);
     }
-
-    let backlinks = note.getTargetRelations();
 
     let backlinksWithExcerptCount = 0;
 
-    return backlinks.filter(note => !note.getNote().hasLabel('excludeFromNoteMap')).map(backlink => {
+    return getFilteredBacklinks(note).map(backlink => {
         const sourceNote = backlink.note;
 
         if (sourceNote.type !== 'text' || backlinksWithExcerptCount > 50) {
@@ -323,5 +380,6 @@ function getBacklinks(req) {
 module.exports = {
     getLinkMap,
     getTreeMap,
+    getBacklinkCount,
     getBacklinks
 };

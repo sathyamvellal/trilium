@@ -186,11 +186,18 @@ function getStartDateOfTheWeek(date, startOfTheWeek) {
     return new Date(date.setDate(diff));
 }
 
+function getWeekNumber(date) {
+    const epoch = new Date('1992-08-17');
+    const ONE_WEEK_IN_MS = 7 * 24 * 60 * 60 * 1000;
+    return Math.floor((date - epoch) / ONE_WEEK_IN_MS);
+}
+
 function getWeekNoteTitle(weekNoteTitlePattern, rootNote, dayNumber, dateObj) {
-    const pattern = weekNoteTitlePattern || rootNote.getOwnedLabelValue("weekPattern") || "Week of {monthNumberPadded}-{dayInMonthPadded}";
+    const pattern = weekNoteTitlePattern || rootNote.getOwnedLabelValue("weekPattern") || "W{weekNumber}: Week of {monthNumberPadded}-{dayInMonthPadded}";
     const monthNumber = dateUtils.utcDateStr(dateObj).substr(5, 2);
 
     return pattern
+        .replace(/{weekNumber}/g, getWeekNumber(new Date()))
         .replace(/{monthNumberPadded}/g, monthNumber)
         .replace(/{dayInMonthPadded}/g, dayNumber);
 }

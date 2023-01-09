@@ -1,5 +1,5 @@
 import TypeWidget from "./type_widget.js";
-import appContext from "../../services/app_context.js";
+import appContext from "../../components/app_context.js";
 import froca from "../../services/froca.js";
 import linkService from "../../services/link.js";
 import noteContentRenderer from "../../services/note_content_renderer.js";
@@ -41,7 +41,7 @@ export default class AbstractTextTypeWidget extends TypeWidget {
     }
 
     getNoteIdFromImage(imgSrc) {
-        const match = imgSrc.match(/\/api\/images\/([A-Za-z0-9]+)\//);
+        const match = imgSrc.match(/\/api\/images\/([A-Za-z0-9_]+)\//);
 
         return match ? match[1] : null;
     }
@@ -50,21 +50,25 @@ export default class AbstractTextTypeWidget extends TypeWidget {
         const note = await froca.getNote(noteId);
 
         if (note) {
+            const $wrapper = $('<div class="include-note-wrapper">');
+
             const $link = await linkService.createNoteLink(note.noteId, {
                 showTooltip: false
             });
 
-            $el.empty().append(
+            $wrapper.empty().append(
                 $('<h4 class="include-note-title">')
                     .append($link)
             );
 
             const {$renderedContent, type} = await noteContentRenderer.getRenderedContent(note);
 
-            $el.append(
+            $wrapper.append(
                 $(`<div class="include-note-content type-${type}">`)
                     .append($renderedContent)
             );
+
+            $el.empty().append($wrapper);
         }
     }
 

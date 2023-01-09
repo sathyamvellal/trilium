@@ -10,6 +10,7 @@ const FileStore = require('session-file-store')(session);
 const sessionSecret = require('./services/session_secret');
 const dataDir = require('./services/data_dir');
 const utils = require('./services/utils');
+const assetPath = require('./services/asset_path');
 require('./services/handlers');
 require('./becca/becca_loader');
 
@@ -34,14 +35,25 @@ app.use(express.json({limit: '500mb'}));
 app.use(express.raw({limit: '500mb'}));
 app.use(express.urlencoded({extended: false}));
 app.use(cookieParser());
-app.use(express.static(path.join(__dirname, 'public')));
-app.use('/libraries', express.static(path.join(__dirname, '..', 'libraries')));
+app.use(express.static(path.join(__dirname, 'public/root')));
+app.use(`/${assetPath}/app`, express.static(path.join(__dirname, 'public/app')));
+app.use(`/${assetPath}/app-dist`, express.static(path.join(__dirname, 'public/app-dist')));
+app.use(`/${assetPath}/fonts`, express.static(path.join(__dirname, 'public/fonts')));
+app.use(`/assets/vX/fonts`, express.static(path.join(__dirname, 'public/fonts')));
+app.use(`/${assetPath}/stylesheets`, express.static(path.join(__dirname, 'public/stylesheets')));
+app.use(`/assets/vX/stylesheets`, express.static(path.join(__dirname, 'public/stylesheets')));
+app.use(`/${assetPath}/libraries`, express.static(path.join(__dirname, '..', 'libraries')));
+app.use(`/assets/vX/libraries`, express.static(path.join(__dirname, '..', 'libraries')));
 // excalidraw-view mode in shared notes
-app.use('/node_modules/react/umd/react.production.min.js', express.static(path.join(__dirname, '..', 'node_modules/react/umd/react.production.min.js')));
-app.use('/node_modules/react-dom/umd/react-dom.production.min.js', express.static(path.join(__dirname, '..', 'node_modules/react-dom/umd/react-dom.production.min.js')));
+app.use(`/${assetPath}/node_modules/react/umd/react.production.min.js`, express.static(path.join(__dirname, '..', 'node_modules/react/umd/react.production.min.js')));
+app.use(`/${assetPath}/node_modules/react-dom/umd/react-dom.production.min.js`, express.static(path.join(__dirname, '..', 'node_modules/react-dom/umd/react-dom.production.min.js')));
 // expose whole dist folder since complete assets are needed in edit and share
-app.use('/node_modules/@excalidraw/excalidraw/dist/', express.static(path.join(__dirname, '..', 'node_modules/@excalidraw/excalidraw/dist/')));
-app.use('/images', express.static(path.join(__dirname, '..', 'images')));
+app.use(`/node_modules/@excalidraw/excalidraw/dist/`, express.static(path.join(__dirname, '..', 'node_modules/@excalidraw/excalidraw/dist/')));
+app.use(`/${assetPath}/node_modules/@excalidraw/excalidraw/dist/`, express.static(path.join(__dirname, '..', 'node_modules/@excalidraw/excalidraw/dist/')));
+app.use(`/${assetPath}/images`, express.static(path.join(__dirname, '..', 'images')));
+app.use(`/assets/vX/images`, express.static(path.join(__dirname, '..', 'images')));
+app.use(`/manifest.webmanifest`, express.static(path.join(__dirname, 'public/manifest.webmanifest')));
+app.use(`/robots.txt`, express.static(path.join(__dirname, 'public/robots.txt')));
 const sessionParser = session({
     secret: sessionSecret,
     resave: false, // true forces the session to be saved back to the session store, even if the session was never modified during the request.
@@ -54,12 +66,12 @@ const sessionParser = session({
     name: 'trilium.sid',
     store: new FileStore({
         ttl: 30 * 24 * 3600,
-        path: dataDir.TRILIUM_DATA_DIR + '/sessions'
+        path: `${dataDir.TRILIUM_DATA_DIR}/sessions`
     })
 });
 app.use(sessionParser);
 
-app.use(favicon(__dirname + '/../images/app-icons/win/icon.ico'));
+app.use(favicon(`${__dirname}/../images/app-icons/win/icon.ico`));
 
 require('./routes/routes').register(app);
 
@@ -79,7 +91,7 @@ app.use((err, req, res, next) => {
 
 // catch 404 and forward to error handler
 app.use((req, res, next) => {
-    const err = new Error('Router not found for request ' + req.url);
+    const err = new Error(`Router not found for request ${req.url}`);
     err.status = 404;
     next(err);
 });

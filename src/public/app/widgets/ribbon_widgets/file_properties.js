@@ -90,7 +90,7 @@ export default class FilePropertiesWidget extends NoteContextAwareWidget {
         this.$uploadNewRevisionInput = this.$widget.find(".file-upload-new-revision-input");
 
         this.$downloadButton.on('click', () => openService.downloadFileNote(this.noteId));
-        this.$openButton.on('click', () => openService.openNoteExternally(this.noteId));
+        this.$openButton.on('click', () => openService.openNoteExternally(this.noteId, this.note.mime));
 
         this.$uploadNewRevisionButton.on("click", () => {
             this.$uploadNewRevisionInput.trigger("click");
@@ -104,7 +104,7 @@ export default class FilePropertiesWidget extends NoteContextAwareWidget {
             formData.append('upload', fileToUpload);
 
             const result = await $.ajax({
-                url: baseApiUrl + 'notes/' + this.noteId + '/file',
+                url: `${baseApiUrl}notes/${this.noteId}/file`,
                 headers: await server.getHeaders(),
                 data: formData,
                 type: 'PUT',
@@ -136,7 +136,7 @@ export default class FilePropertiesWidget extends NoteContextAwareWidget {
 
         const noteComplement = await this.noteContext.getNoteComplement();
 
-        this.$fileSize.text(noteComplement.contentLength + " bytes");
+        this.$fileSize.text(`${noteComplement.contentLength} bytes`);
 
         // open doesn't work for protected notes since it works through browser which isn't in protected session
         this.$openButton.toggle(!note.isProtected);

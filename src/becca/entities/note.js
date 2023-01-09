@@ -10,7 +10,7 @@ const AbstractEntity = require("./abstract_entity");
 const NoteRevision = require("./note_revision");
 const TaskContext = require("../../services/task_context");
 const dayjs = require("dayjs");
-const utc = require('dayjs/plugin/utc')
+const utc = require('dayjs/plugin/utc');
 dayjs.extend(utc)
 
 const LABEL = 'label';
@@ -72,6 +72,8 @@ class Note extends AbstractEntity {
         this.utcDateCreated = utcDateCreated || dateUtils.utcNowDateTime();
         /** @type {string} */
         this.utcDateModified = utcDateModified;
+        /** @type {boolean} - set during the deletion operation, before it is completed (removed from becca completely) */
+        this.isBeingDeleted = false;
 
         // ------ Derived attributes ------
 
@@ -155,6 +157,15 @@ class Note extends AbstractEntity {
     }
 
     /**
+     * Returns <i>strong</i> (as opposed to <i>weak</i>) parent branches. See isWeak for details.
+     *
+     * @returns {Branch[]}
+     */
+    getStrongParentBranches() {
+        return this.getParentBranches().filter(branch => !branch.isWeak);
+    }
+
+    /**
      * @returns {Branch[]}
      * @deprecated use getParentBranches() instead
      */
@@ -200,7 +211,7 @@ class Note extends AbstractEntity {
                 return undefined;
             }
             else {
-                throw new Error("Cannot find note content for noteId=" + this.noteId);
+                throw new Error(`Cannot find note content for noteId=${this.noteId}`);
             }
         }
 
@@ -293,7 +304,7 @@ class Note extends AbstractEntity {
 
         sql.upsert("note_contents", "noteId", pojo);
 
-        const hash = utils.hash(this.noteId + "|" + pojo.content.toString());
+        const hash = utils.hash(`${this.noteId}|${pojo.content.toString()}`);
 
         entityChangesService.addEntityChange({
             entityName: 'note_contents',
@@ -321,7 +332,7 @@ class Note extends AbstractEntity {
 
     /** @returns {boolean} true if this note is JavaScript (code or attachment) */
     isJavaScript() {
-        return (this.type === "code" || this.type === "file")
+        return (this.type === "code" || this.type === "file" || this.type === 'launcher')
             && (this.mime.startsWith("application/javascript")
                 || this.mime === "application/x-javascript"
                 || this.mime === "text/javascript");
@@ -361,6 +372,8 @@ class Note extends AbstractEntity {
      * @returns {Attribute[]} all note's attributes, including inherited ones
      */
     getAttributes(type, name) {
+        this.__validateTypeName(type, name);
+
         this.__getAttributes([]);
 
         if (type && name) {
@@ -373,7 +386,8 @@ class Note extends AbstractEntity {
             return this.__attributeCache.filter(attr => attr.name === name);
         }
         else {
-            return this.__attributeCache.slice();
+            // a bit unsafe to return the original array, but defensive copy would be costly
+            return this.__attributeCache;
         }
     }
 
@@ -449,13 +463,26 @@ class Note extends AbstractEntity {
         return this.inheritableAttributeCache;
     }
 
+    __validateTypeName(type, name) {
+        if (type && type !== 'label' && type !== 'relation') {
+            throw new Error(`Unrecognized attribute type '${type}'. Only 'label' and 'relation' are possible values.`);
+        }
+
+        if (name) {
+            const firstLetter = name.charAt(0);
+            if (firstLetter === '#' || firstLetter === '~') {
+                throw new Error(`Detect '#' or '~' in the attribute's name. In the API, attribute names should be set without these characters.`);
+            }
+        }
+    }
+
     /**
      * @param type
      * @param name
      * @param [value]
      * @returns {boolean}
      */
-    hasAttribute(type, name, value) {
+    hasAttribute(type, name, value = null) {
         return !!this.getAttributes().find(attr =>
             attr.type === type
             && attr.name === name
@@ -647,16 +674,13 @@ class Note extends AbstractEntity {
     }
 
     /**
-     * @param {string} [type] - (optional) attribute type to filter
-     * @param {string} [name] - (optional) attribute name to filter
-     * @param {string} [value] - (optional) attribute value to filter
+     * @param {string|null} [type] - (optional) attribute type to filter
+     * @param {string|null} [name] - (optional) attribute name to filter
+     * @param {string|null} [value] - (optional) attribute value to filter
      * @returns {Attribute[]} note's "owned" attributes - excluding inherited ones
      */
-    getOwnedAttributes(type, name, value) {
-        // it's a common mistake to include # or ~ into attribute name
-        if (name && ["#", "~"].includes(name[0])) {
-            name = name.substr(1);
-        }
+    getOwnedAttributes(type = null, name = null, value = null) {
+        this.__validateTypeName(type, name);
 
         if (type && name && value !== undefined && value !== null) {
             return this.ownedAttributes.filter(attr => attr.type === type && attr.name === name && attr.value === value);
@@ -680,7 +704,7 @@ class Note extends AbstractEntity {
      *
      * This method can be significantly faster than the getAttribute()
      */
-    getOwnedAttribute(type, name, value) {
+    getOwnedAttribute(type, name, value = null) {
         const attrs = this.getOwnedAttributes(type, name, value);
 
         return attrs.length > 0 ? attrs[0] : null;
@@ -698,7 +722,7 @@ class Note extends AbstractEntity {
     // this is done so that non-search & non-archived paths are always explored as first when looking for note path
     sortParents() {
         this.parentBranches.sort((a, b) =>
-            a.branchId.startsWith('virt-')
+            a.branchId.startsWith('virt-') // FIXME: search virtual notes appear only in froca so this is probably not necessary
             || a.parentNote?.hasInheritableOwnedArchivedLabel() ? 1 : -1);
 
         this.parents = this.parentBranches
@@ -715,22 +739,22 @@ class Note extends AbstractEntity {
      */
     getFlatText() {
         if (!this.flatTextCache) {
-            this.flatTextCache = this.noteId + ' ' + this.type + ' ' + this.mime + ' ';
+            this.flatTextCache = `${this.noteId} ${this.type} ${this.mime} `;
 
             for (const branch of this.parentBranches) {
                 if (branch.prefix) {
-                    this.flatTextCache += branch.prefix + ' ';
+                    this.flatTextCache += `${branch.prefix} `;
                 }
             }
 
-            this.flatTextCache += this.title + ' ';
+            this.flatTextCache += `${this.title} `;
 
             for (const attr of this.getAttributes()) {
                 // it's best to use space as separator since spaces are filtered from the search string by the tokenization into words
-                this.flatTextCache += (attr.type === 'label' ? '#' : '~') + attr.name;
+                this.flatTextCache += `${attr.type === 'label' ? '#' : '~'}${attr.name}`;
 
                 if (attr.value) {
-                    this.flatTextCache += '=' + attr.value;
+                    this.flatTextCache += `=${attr.value}`;
                 }
 
                 this.flatTextCache += ' ';
@@ -839,32 +863,96 @@ class Note extends AbstractEntity {
         return Array.from(set);
     }
 
-    /** @returns {Note[]} */
-    getSubtreeNotes(includeArchived = true) {
-        const noteSet = new Set();
+    /** @return {Note[]} */
+    getSearchResultNotes() {
+        if (this.type !== 'search') {
+            return [];
+        }
 
-        function addSubtreeNotesInner(note) {
+        try {
+            const searchService = require("../../services/search/services/search");
+            const {searchResultNoteIds} = searchService.searchFromNote(this);
+
+            const becca = this.becca;
+            return searchResultNoteIds
+                .map(resultNoteId => becca.notes[resultNoteId])
+                .filter(note => !!note);
+        }
+        catch (e) {
+            log.error(`Could not resolve search note ${this.noteId}: ${e.message}`);
+            return [];
+        }
+    }
+
+    /**
+     * @returns {{notes: Note[], relationships: Array.<{parentNoteId: string, childNoteId: string}>}}
+     */
+    getSubtree({includeArchived = true, includeHidden = false, resolveSearch = false} = {}) {
+        const noteSet = new Set();
+        const relationships = []; // list of tuples parentNoteId -> childNoteId
+
+        function resolveSearchNote(searchNote) {
+            try {
+                for (const resultNote of searchNote.getSearchResultNotes()) {
+                    addSubtreeNotesInner(resultNote, searchNote);
+                }
+            }
+            catch (e) {
+                log.error(`Could not resolve search note ${searchNote?.noteId}: ${e.message}`);
+            }
+        }
+
+        function addSubtreeNotesInner(note, parentNote = null) {
+            if (note.noteId === '_hidden' && !includeHidden) {
+                return;
+            }
+
+            if (parentNote) {
+                // this needs to happen first before noteSet check to include all clone relationships
+                relationships.push({
+                    parentNoteId: parentNote.noteId,
+                    childNoteId: note.noteId
+                });
+            }
+
+            if (noteSet.has(note)) {
+                return;
+            }
+
             if (!includeArchived && note.isArchived) {
                 return;
             }
 
             noteSet.add(note);
 
-            for (const childNote of note.children) {
-                addSubtreeNotesInner(childNote);
+            if (note.type === 'search') {
+                if (resolveSearch) {
+                    resolveSearchNote(note);
+                }
+            }
+            else {
+                for (const childNote of note.children) {
+                    addSubtreeNotesInner(childNote, note);
+                }
             }
         }
 
         addSubtreeNotesInner(this);
 
-        return Array.from(noteSet);
+        return {
+            notes: Array.from(noteSet),
+            relationships
+        };
     }
 
-    /** @returns {String[]} */
-    getSubtreeNoteIds(includeArchived = true) {
-        return this.getSubtreeNotes(includeArchived).map(note => note.noteId);
+    /** @returns {String[]} - includes the subtree node as well */
+    getSubtreeNoteIds({includeArchived = true, includeHidden = false, resolveSearch = false} = {}) {
+        return this.getSubtree({includeArchived, includeHidden, resolveSearch})
+            .notes
+            .map(note => note.noteId);
     }
 
+    /** @deprecated use getSubtreeNoteIds() instead */
     getDescendantNoteIds() {
         return this.getSubtreeNoteIds();
     }
@@ -954,6 +1042,10 @@ class Note extends AbstractEntity {
         return false;
     }
 
+    isInHiddenSubtree() {
+        return this.noteId === '_hidden' || this.hasAncestor('_hidden');
+    }
+
     getTargetRelations() {
         return this.targetRelations;
     }
@@ -1036,7 +1128,7 @@ class Note extends AbstractEntity {
         const attributes = this.getOwnedAttributes();
         const attr = attributes.find(attr => attr.type === type && attr.name === name);
 
-        value = value !== null && value !== undefined ? value.toString() : "";
+        value = value?.toString() || "";
 
         if (attr) {
             if (attr.value !== value) {
@@ -1080,7 +1172,8 @@ class Note extends AbstractEntity {
      * @param {string} type - attribute type (label / relation)
      * @param {string} name - name of the attribute, not including the leading ~/#
      * @param {string} [value] - value of the attribute - text for labels, target note ID for relations; optional.
-     *
+     * @param {boolean} [isInheritable=false]
+     * @param {int} [position]
      * @return {Attribute}
      */
     addAttribute(type, name, value = "", isInheritable = false, position = 1000) {
@@ -1101,7 +1194,7 @@ class Note extends AbstractEntity {
      *
      * @param {string} name - name of the label, not including the leading #
      * @param {string} [value] - text value of the label; optional
-     *
+     * @param {boolean} [isInheritable=false]
      * @return {Attribute}
      */
     addLabel(name, value = "", isInheritable = false) {
@@ -1113,8 +1206,8 @@ class Note extends AbstractEntity {
      * returned.
      *
      * @param {string} name - name of the relation, not including the leading ~
-     * @param {string} value - ID of the target note of the relation
-     *
+     * @param {string} targetNoteId
+     * @param {boolean} [isInheritable=false]
      * @return {Attribute}
      */
     addRelation(name, targetNoteId, isInheritable = false) {
@@ -1253,8 +1346,16 @@ class Note extends AbstractEntity {
         }
     }
 
+    isLaunchBarConfig() {
+        return this.type === 'launcher' || ['_lbRoot', '_lbAvailableLaunchers', '_lbVisibleLaunchers'].includes(this.noteId);
+    }
+
+    isOptions() {
+        return this.noteId.startsWith("options");
+    }
+
     get isDeleted() {
-        return !(this.noteId in this.becca.notes);
+        return !(this.noteId in this.becca.notes) || this.isBeingDeleted;
     }
 
     /**
