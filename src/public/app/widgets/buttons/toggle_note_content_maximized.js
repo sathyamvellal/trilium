@@ -8,8 +8,8 @@ export default class ToggleNoteContentMaximizedWidget extends CommandButtonWidge
         this.class("launcher-button");
 
         this.settings.icon = () => options.is('noteContentMaximized')
-            ? "bx-fullscreen"
-            : "bx-exit-fullscreen";
+            ? "bx-exit-fullscreen"
+            : "bx-fullscreen";
 
         this.settings.title = () => options.is('noteContentMaximized')
             ? "Unmaximize Note Content"
