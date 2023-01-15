@@ -72,6 +72,18 @@ export default class RootCommandExecutor extends Component {
         options.toggle('leftPaneVisible');
     }
 
+    hideNoteContentMaximizedCommand() {
+        options.save(`noteContentMaximized`, "false");
+    }
+
+    showNoteContentMaximizedCommand() {
+        options.save(`noteContentMaximized`, "true");
+    }
+
+    toggleNoteContentMaximizedCommand() {
+        options.toggle('noteContentMaximized');
+    }
+
     async showBackendLogCommand() {
         await appContext.tabManager.openContextWithNote('_backendLog', true);
     }

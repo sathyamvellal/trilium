@@ -68,6 +68,7 @@ const defaultOptions = [
     { name: 'leftPaneVisible', value: 'true', isSynced: false },
     { name: 'rightPaneWidth', value: '25', isSynced: false },
     { name: 'rightPaneVisible', value: 'true', isSynced: false },
+    { name: 'noteContentMaximized', value: 'false', isSynced: false },
     { name: 'nativeTitleBarVisible', value: 'false', isSynced: false },
     { name: 'eraseEntitiesAfterTimeInSeconds', value: '604800', isSynced: true }, // default is 7 days
     { name: 'hideArchivedNotes_main', value: 'false', isSynced: false },
