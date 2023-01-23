@@ -38,12 +38,22 @@ export default class RibbonRowContainer extends RibbonContainer {
             .ribbon(new SimilarNotesWidget())
             .ribbon(new NoteInfoWidget())
             .button(new NoteRevisionsButton())
-            .button(new NoteActionsWidget())
+            .button(new NoteActionsWidget());
+    }
+
+    refresh() {
+        super.refresh();
+
+        this.toggleInt(options.is("noteContentMaximized"));
     }
 
     entitiesReloadedEvent({loadResults}) {
         if (loadResults.isOptionReloaded("noteContentMaximized")) {
-            this.toggleInt(options.is("noteContentMaximized"));
+            this.refresh();
         }
+    }
+
+    initialRenderCompleteEvent() {
+        this.refresh();
     }
 }

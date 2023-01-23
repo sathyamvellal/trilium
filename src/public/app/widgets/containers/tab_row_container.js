@@ -12,9 +12,17 @@ export default class TabRowContainer extends FlexContainer {
             .child(new TitleBarButtonsWidget());
     }
 
+    refresh() {
+        this.toggleInt(options.is("noteContentMaximized"));
+    }
+
     entitiesReloadedEvent({loadResults}) {
         if (loadResults.isOptionReloaded("noteContentMaximized")) {
-            this.toggleInt(options.is("noteContentMaximized"));
+            this.refresh();
         }
+    }
+
+    initialRenderCompleteEvent() {
+        this.refresh();
     }
 }

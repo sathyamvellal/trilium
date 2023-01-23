@@ -19,12 +19,6 @@ export default class TitleRowContainer extends FlexContainer {
             .child(new NoteTitleWidget())
             .child(new SpacerWidget(0, 1))
             .child(new ClosePaneButton())
-            .child(new CreatePaneButton())
-    }
-
-    entitiesReloadedEvent({loadResults}) {
-        if (loadResults.isOptionReloaded("noteContentMaximized")) {
-        this.toggleInt(options.is("noteContentMaximized"));
-        }
+            .child(new CreatePaneButton());
     }
 }
