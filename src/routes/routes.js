@@ -21,7 +21,6 @@ const setupRoute = require('./setup');
 const loginRoute = require('./login');
 const indexRoute = require('./index');
 const redirectRoutes = require('./redirect');
-const utils = require('../services/utils');
 
 // API routes
 const treeApiRoute = require('./api/tree');
