@@ -478,6 +478,12 @@ const DEFAULT_KEYBOARD_ACTIONS = [
         scope: "window"
     },
     {
+        actionName: "toggleNoteContentMaximized",
+        defaultShortcuts: [],
+        description: "Toggle maximizing note content",
+        scope: "window"
+    },
+    {
         actionName: "toggleFullscreen",
         defaultShortcuts: ["F11"],
         description: "Toggle full screen",
