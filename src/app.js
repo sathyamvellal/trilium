@@ -11,6 +11,7 @@ const sessionSecret = require('./services/session_secret');
 const dataDir = require('./services/data_dir');
 const utils = require('./services/utils');
 const assetPath = require('./services/asset_path');
+const cors = require('cors');
 require('./services/handlers');
 require('./becca/becca_loader');
 
@@ -23,6 +24,27 @@ app.set('view engine', 'ejs');
 if (!utils.isElectron()) {
     app.use(compression()); // HTTP compression
 }
+
+const allowedOrigins = [
+    'http://localhost',
+    'https://notes.sathyam.me',
+    'https://arch.sathyam.me',
+];
+app.use(cors({
+    origin: function(origin, callback) {
+        if (!origin || origin == null || origin === "null") {
+	    return callback(null, true);
+	}
+
+	if (allowedOrigins.indexOf(origin) == -1) {
+	    console.log('Origin(' + (typeof origin) + '): ' + origin);
+	    var message = 'Access Denied by CORS policy';
+	    return callback(new Error(message), false);
+	}
+
+	return callback(null, true);
+    }
+}));
 
 app.use(helmet({
     hidePoweredBy: false, // errors out in electron
