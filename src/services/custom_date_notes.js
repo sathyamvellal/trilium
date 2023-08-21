@@ -187,7 +187,7 @@ function getStartDateOfTheWeek(date, startOfTheWeek) {
 }
 
 function getWeekNumber(date) {
-    const epoch = new Date('1992-08-17');
+    const epoch = new Date('2018-07-02');
     const ONE_WEEK_IN_MS = 7 * 24 * 60 * 60 * 1000;
     return Math.floor((date - epoch) / ONE_WEEK_IN_MS) + 1;
 }
