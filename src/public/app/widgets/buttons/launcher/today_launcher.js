@@ -4,7 +4,7 @@ import appContext from "../../../components/app_context.js";
 
 export default class TodayLauncher extends NoteLauncher {
     async getTargetNoteId() {
-        const todayNote = await dateNotesService.getTodayNote();
+        const todayNote = await dateNotesService.getWeekNote();
 
         return todayNote.noteId;
     }
