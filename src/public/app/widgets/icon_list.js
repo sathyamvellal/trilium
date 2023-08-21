@@ -3,6 +3,10 @@
 const categories = [
     {"name": "All categories", "id": 0},
     {
+        "name": "Default",
+        "id": 90
+    },
+    {
         "name": "Accessibility",
         "id": 94
     },
@@ -133,6 +137,18 @@ const categories = [
 ];
 
 const icons = [
+    {
+        "name": "circle",
+        "slug": "circle-regular",
+        "category_id": 90,
+        "type_of_icon": "REGULAR"
+    },
+    {
+        "name": "check-circle",
+        "slug": "check-circle-regular",
+        "category_id": 90,
+        "type_of_icon": "REGULAR"
+    },
     {
         "name": "child",
         "slug": "child-regular",
@@ -7275,12 +7291,6 @@ const icons = [
     },
     {
         "name": "check-circle",
-        "slug": "check-circle-regular",
-        "category_id": 110,
-        "type_of_icon": "REGULAR"
-    },
-    {
-        "name": "check-circle",
         "slug": "check-circle-solid",
         "category_id": 110,
         "type_of_icon": "SOLID"
@@ -7657,12 +7667,6 @@ const icons = [
         "name": "transfer",
         "slug": "transfer-regular",
         "category_id": 96,
-        "type_of_icon": "REGULAR"
-    },
-    {
-        "name": "circle",
-        "slug": "circle-regular",
-        "category_id": 118,
         "type_of_icon": "REGULAR"
     },
     {
