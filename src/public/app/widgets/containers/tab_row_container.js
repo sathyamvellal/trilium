@@ -13,7 +13,7 @@ export default class TabRowContainer extends FlexContainer {
     }
 
     refresh() {
-        this.toggleInt(options.is("noteContentMaximized"));
+        // this.toggleInt(options.is("noteContentMaximized"));
     }
 
     entitiesReloadedEvent({loadResults}) {

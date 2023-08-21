@@ -106,9 +106,18 @@ class Note extends AbstractEntity {
         let content = row.content;
 
         if (this.isStringNote()) {
-            return content === null
-                ? ""
-                : content.toString("UTF-8");
+            if (content === null) {
+                return "";
+            }
+
+            let _content = content.toString("UTF-8");
+
+            for (let childNote of this.getChildNotes()) {
+                _content += "<hr>" + `<strong>${childNote.title}</strong>`;
+                _content += childNote.getContent();
+            }
+
+            return _content;
         }
         else {
             return content;
