@@ -109,3 +109,7 @@ body {
     --ck-color-widget-type-around-button: var(--main-border-color);
     --ck-color-widget-type-around-button-hover: var(--main-border-color);
 }
+
+em {
+    --ck-color-text: #999 !important;
+}
