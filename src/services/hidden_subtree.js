@@ -194,9 +194,10 @@ const HIDDEN_SUBTREE_DEFINITION = {
                                 { type: 'label', name: 'desktopOnly' }
                             ] },
                         { id: '_lbNoteMap', title: 'Note Map', type: 'launcher', targetNoteId: '_globalNoteMap', icon: 'bx bx-map-alt' },
-                        { id: '_lbCalendar', title: 'General Logs', type: 'launcher', builtinWidget: 'calendar', icon: 'bx bx-calendar', calendarRootLabel: 'calendarRoot', calendarNoteType: 'week', calendarStartOfTheWeek: 'monday' },
-                        { id: '_lbCalendarJournal', title: 'Journal', type: 'launcher', builtinWidget: 'calendar', icon: 'bx bx-book', calendarRootLabel: 'journal', calendarNoteType: 'week', calendarStartOfTheWeek: 'monday' },
-                        { id: '_lbCalendarHealthLogs', title: 'Health Logs', type: 'launcher', builtinWidget: 'calendar', icon: 'bx bx-calendar-plus', calendarRootLabel: 'healthLogs', calendarNoteType: 'week', calendarStartOfTheWeek: 'monday' },
+                        { id: '_lbCalendar', title: 'Logs', type: 'launcher', builtinWidget: 'calendar', icon: 'bx bx-book', calendarRootLabel: 'logs', calendarNoteType: 'week', calendarStartOfTheWeek: 'monday' },
+                        { id: '_lbCalendarStatus', title: 'Updates', type: 'launcher', builtinWidget: 'calendar', icon: 'bx bx-receipt', calendarRootLabel: 'status', calendarNoteType: 'week', calendarStartOfTheWeek: 'monday' },
+                        { id: '_lbCalendarTodo', title: 'ToDo', type: 'launcher', builtinWidget: 'calendar', icon: 'bx bx-task', calendarRootLabel: 'todo', calendarNoteType: 'week', calendarStartOfTheWeek: 'monday' },
+                        { id: '_lbCalendarDiary', title: 'Diary', type: 'launcher', builtinWidget: 'calendar', icon: 'bx bx-pen', calendarRootLabel: 'diary', calendarNoteType: 'week', calendarStartOfTheWeek: 'tuesday' },
                         { id: '_lbRecentChanges', title: 'Recent Changes', type: 'launcher', command: 'showRecentChanges', icon: 'bx bx-history', attributes: [
                                 { type: 'label', name: 'desktopOnly' }
                             ] },
