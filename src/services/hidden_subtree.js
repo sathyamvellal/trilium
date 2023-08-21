@@ -186,7 +186,7 @@ const HIDDEN_SUBTREE_DEFINITION = {
                     isExpanded: true,
                     attributes: [ { type: 'label', name: 'docName', value: 'launchbar_intro' } ],
                     children: [
-                        { id: '_lbNewNote', title: 'New Note', type: 'launcher', command: 'createNoteIntoInbox', icon: 'bx bx-file-blank' },
+                        { id: '_lbNewNote', title: 'New Note', type: 'launcher', command: 'createNoteIntoInbox', icon: 'bx bx-layer-plus' },
                         { id: '_lbSearch', title: 'Search Notes', type: 'launcher', command: 'searchNotes', icon: 'bx bx-search', attributes: [
                                 { type: 'label', name: 'desktopOnly' }
                             ] },
@@ -194,9 +194,9 @@ const HIDDEN_SUBTREE_DEFINITION = {
                                 { type: 'label', name: 'desktopOnly' }
                             ] },
                         { id: '_lbNoteMap', title: 'Note Map', type: 'launcher', targetNoteId: '_globalNoteMap', icon: 'bx bx-map-alt' },
-                        { id: '_lbCalendar', title: 'General Logs', type: 'launcher', builtinWidget: 'calendar', icon: 'bx bx-calendar', calendarRootLabel: 'calendarRoot', calendarNoteType: 'date', calendarStartOfTheWeek: 'monday' },
-                        { id: '_lbCalendarJournal', title: 'Journal', type: 'launcher', builtinWidget: 'calendar', icon: 'bx bx-book', calendarRootLabel: 'journal', calendarNoteType: 'date', calendarStartOfTheWeek: 'monday' },
-                        { id: '_lbCalendarHealthLogs', title: 'Health Logs', type: 'launcher', builtinWidget: 'calendar', icon: 'bx bx-calendar-plus', calendarRootLabel: 'healthLogs', calendarNoteType: 'date', calendarStartOfTheWeek: 'monday' },
+                        { id: '_lbCalendar', title: 'General Logs', type: 'launcher', builtinWidget: 'calendar', icon: 'bx bx-calendar', calendarRootLabel: 'calendarRoot', calendarNoteType: 'week', calendarStartOfTheWeek: 'monday' },
+                        { id: '_lbCalendarJournal', title: 'Journal', type: 'launcher', builtinWidget: 'calendar', icon: 'bx bx-book', calendarRootLabel: 'journal', calendarNoteType: 'week', calendarStartOfTheWeek: 'monday' },
+                        { id: '_lbCalendarHealthLogs', title: 'Health Logs', type: 'launcher', builtinWidget: 'calendar', icon: 'bx bx-calendar-plus', calendarRootLabel: 'healthLogs', calendarNoteType: 'week', calendarStartOfTheWeek: 'monday' },
                         { id: '_lbRecentChanges', title: 'Recent Changes', type: 'launcher', command: 'showRecentChanges', icon: 'bx bx-history', attributes: [
                                 { type: 'label', name: 'desktopOnly' }
                             ] },
@@ -272,6 +272,7 @@ function checkHiddenSubtreeRecursively(parentNoteId, item) {
             attrs.push({ type: 'relation', name: 'template', value: LBTPL_COMMAND });
             attrs.push({ type: 'label', name: 'command', value: item.command });
         } else if (item.builtinWidget) {
+            console.log(item);
             if (item.builtinWidget === 'spacer') {
                 attrs.push({ type: 'relation', name: 'template', value: LBTPL_SPACER });
                 attrs.push({ type: 'label', name: 'baseSize', value: item.baseSize });
