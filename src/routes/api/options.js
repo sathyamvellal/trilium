@@ -114,7 +114,7 @@ function update(name, value) {
 }
 
 function getUserThemes() {
-    const notes = searchService.searchNotes("#appTheme");
+    const notes = searchService.searchNotes("#appTheme", {ignoreHoistedNote: true});
     const ret = [];
 
     for (const note of notes) {

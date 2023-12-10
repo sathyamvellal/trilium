@@ -364,6 +364,13 @@ class NoteShort {
         return notePaths;
     }
 
+    /**
+     * @return boolean - true if there's no non-hidden path, note is not cloned to the visible tree
+     */
+    isHiddenCompletely() {
+        return !this.getAllNotePaths().find(notePathArr => !notePathArr.includes('_hidden'));
+    }
+
     __filterAttrs(attributes, type, name) {
         this.__validateTypeName(type, name);
 
@@ -681,7 +688,7 @@ class NoteShort {
         return promotedAttrs;
     }
 
-    hasAncestor(ancestorNoteId, visitedNoteIds = null) {
+    hasAncestor(ancestorNoteId, followTemplates = false, visitedNoteIds = null) {
         if (this.noteId === ancestorNoteId) {
             return true;
         }
@@ -695,14 +702,16 @@ class NoteShort {
 
         visitedNoteIds.add(this.noteId);
 
-        for (const templateNote of this.getTemplateNotes()) {
-            if (templateNote.hasAncestor(ancestorNoteId, visitedNoteIds)) {
-                return true;
+        if (followTemplates) {
+            for (const templateNote of this.getTemplateNotes()) {
+                if (templateNote.hasAncestor(ancestorNoteId, followTemplates, visitedNoteIds)) {
+                    return true;
+                }
             }
         }
 
         for (const parentNote of this.getParentNotes()) {
-            if (parentNote.hasAncestor(ancestorNoteId, visitedNoteIds)) {
+            if (parentNote.hasAncestor(ancestorNoteId, followTemplates, visitedNoteIds)) {
                 return true;
             }
         }
@@ -853,7 +862,7 @@ class NoteShort {
     }
 
     isOptions() {
-        return this.noteId.startsWith("options");
+        return this.noteId.startsWith("_options");
     }
 }
 

@@ -460,7 +460,7 @@ export default class NoteTreeWidget extends NoteContextAwareWidget {
                     if (dataTransfer && dataTransfer.files && dataTransfer.files.length > 0) {
                         const files = [...dataTransfer.files]; // chrome has issue that dataTransfer.files empties after async operation
 
-                        const importService = await import('../services/import');
+                        const importService = await import('../services/import.js');
 
                         importService.uploadFiles(node.data.noteId, files, {
                             safeImport: true,
@@ -832,6 +832,8 @@ export default class NoteTreeWidget extends NoteContextAwareWidget {
             }
         });
 
+        await this.filterHoistedBranch();
+
         const activeNode = await this.getNodeFromPath(appContext.tabManager.getActiveContextNotePath());
 
         if (activeNode) {
@@ -885,6 +887,11 @@ export default class NoteTreeWidget extends NoteContextAwareWidget {
                 node.setActive(true, {noEvents: true, noFocus: false});
             }
         }
+    }
+
+    async focusTreeEvent() {
+        this.tree.$container.focus();
+        this.tree.setFocus(true);
     }
 
     /** @returns {FancytreeNode} */
@@ -1074,6 +1081,8 @@ export default class NoteTreeWidget extends NoteContextAwareWidget {
                     }
                 }
             }, false);
+
+            this.filterHoistedBranch();
         }, 600 * 1000);
     }
 
@@ -1308,6 +1317,8 @@ export default class NoteTreeWidget extends NoteContextAwareWidget {
         await this.batchUpdate(async () => {
             await this.tree.reload([rootNode]);
         });
+
+        await this.filterHoistedBranch();
 
         if (activeNotePath) {
             const node = await this.getNodeFromPath(activeNotePath, true);
@@ -1606,7 +1617,7 @@ export default class NoteTreeWidget extends NoteContextAwareWidget {
         const resp = await server.post(`special-notes/launchers/${node.data.noteId}/${launcherType}`);
 
         if (!resp.success) {
-            alert(resp.message);
+            toastService.showError(resp.message);
         }
 
         await ws.waitForMaxKnownEntityChangeId();
