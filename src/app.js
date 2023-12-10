@@ -26,7 +26,8 @@ if (!utils.isElectron()) {
 }
 
 const allowedOrigins = [
-    'http://localhost',
+    'http://localhost:10023',
+    'http://127.0.0.1:10023',
     'https://notes.sathyam.me',
     'https://arch.sathyam.me',
 ];
@@ -35,7 +36,7 @@ app.use(cors({
         if (!origin || origin == null || origin === "null") {
 	    return callback(null, true);
 	}
-
+    
 	if (allowedOrigins.indexOf(origin) == -1) {
 	    console.log('Origin(' + (typeof origin) + '): ' + origin);
 	    var message = 'Access Denied by CORS policy';
