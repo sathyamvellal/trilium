@@ -12,13 +12,13 @@ export default class TabRowContainer extends FlexContainer {
             .child(new TitleBarButtonsWidget());
     }
 
-    refresh() {
-        // this.toggleInt(options.is("noteContentMaximized"));
+    isEnabled() {
+        return super.isEnabled() && options.is('tabRowVisible');
     }
 
     entitiesReloadedEvent({loadResults}) {
-        if (loadResults.isOptionReloaded("noteContentMaximized")) {
-            this.refresh();
+        if (loadResults.isOptionReloaded("tabRowVisible")) {
+            this.toggleInt(this.isEnabled());
         }
     }
 

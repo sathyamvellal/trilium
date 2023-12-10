@@ -45,6 +45,7 @@ const ALLOWED_OPTIONS = new Set([
     'leftPaneVisible',
     'rightPaneVisible',
     'noteContentMaximized',
+    'tabRowVisible',
     'nativeTitleBarVisible',
     'attributeListExpanded',
     'promotedAttributesExpanded',

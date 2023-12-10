@@ -84,6 +84,18 @@ export default class RootCommandExecutor extends Component {
         options.toggle('noteContentMaximized');
     }
 
+    hideTabRowCommand() {
+        options.save(`tabRowVisible`, "false")
+    }
+
+    showTabRowCommand() {
+        options.save(`tabRowVisible`, "true");
+    }
+
+    toggleTabRowCommand() {
+        options.toggle('tabRowVisible');
+    }
+
     async showBackendLogCommand() {
         await appContext.tabManager.openContextWithNote('_backendLog', true);
     }

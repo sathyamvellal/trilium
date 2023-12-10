@@ -484,6 +484,12 @@ const DEFAULT_KEYBOARD_ACTIONS = [
         scope: "window"
     },
     {
+        actionName: "toggleTabRow",
+        defaultShortcuts: [],
+        description: "Toggle Tab Row",
+        scope: "window"
+    },
+    {
         actionName: "toggleFullscreen",
         defaultShortcuts: ["F11"],
         description: "Toggle full screen",
