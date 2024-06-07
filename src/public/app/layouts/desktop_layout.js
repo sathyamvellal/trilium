@@ -54,9 +54,29 @@ import HideFloatingButtonsButton from "../widgets/floating_buttons/hide_floating
 import TitleRowContainer from "../widgets/containers/title_row_container.js";
 import RibbonRowContainer from "../widgets/containers/ribbon_row_container.js";
 import TabRowContainer from "../widgets/containers/tab_row_container.js";
-import RibbonContainer from "./ribbon_container.js";
+import RibbonContainer from "../widgets/containers/ribbon_container.js";
 import ScriptExecutorWidget from "../widgets/ribbon_widgets/script_executor.js";
 import MovePaneButton from "../widgets/buttons/move_pane_button.js";
+import NoteIconWidget from "../widgets/note_icon.js";
+import NoteTitleWidget from "../widgets/note_title.js";
+import SpacerWidget from "../widgets/spacer.js";
+import ClosePaneButton from "../widgets/buttons/close_pane_button.js";
+import CreatePaneButton from "../widgets/buttons/create_pane_button.js";
+import PromotedAttributesWidget from "../widgets/ribbon_widgets/promoted_attributes.js";
+import SearchDefinitionWidget from "../widgets/ribbon_widgets/search_definition.js";
+import EditedNotesWidget from "../widgets/ribbon_widgets/edited_notes.js";
+import BookPropertiesWidget from "../widgets/ribbon_widgets/book_properties.js";
+import NotePropertiesWidget from "../widgets/ribbon_widgets/note_properties.js";
+import FilePropertiesWidget from "../widgets/ribbon_widgets/file_properties.js";
+import ImagePropertiesWidget from "../widgets/ribbon_widgets/image_properties.js";
+import BasicPropertiesWidget from "../widgets/ribbon_widgets/basic_properties.js";
+import OwnedAttributeListWidget from "../widgets/ribbon_widgets/owned_attribute_list.js";
+import InheritedAttributesWidget from "../widgets/ribbon_widgets/inherited_attribute_list.js";
+import NotePathsWidget from "../widgets/ribbon_widgets/note_paths.js";
+import NoteMapRibbonWidget from "../widgets/ribbon_widgets/note_map.js";
+import SimilarNotesWidget from "../widgets/ribbon_widgets/similar_notes.js";
+import NoteInfoWidget from "../widgets/ribbon_widgets/note_info_widget.js";
+import NoteActionsWidget from "../widgets/buttons/note_actions.js";
 
 export default class DesktopLayout {
     constructor(customWidgets) {
@@ -130,7 +150,7 @@ export default class DesktopLayout {
                                             .ribbon(new NoteMapRibbonWidget())
                                             .ribbon(new SimilarNotesWidget())
                                             .ribbon(new NoteInfoWidget())
-                                            .button(new NoteRevisionsButton())
+                                            .button(new NoteRevisionsDialog())
                                             .button(new NoteActionsWidget())
                                     )
                                     .child(new SharedInfoWidget())

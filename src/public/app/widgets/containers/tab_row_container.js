@@ -23,6 +23,6 @@ export default class TabRowContainer extends FlexContainer {
     }
 
     initialRenderCompleteEvent() {
-        this.refresh();
+        // this.refresh();
     }
 }
