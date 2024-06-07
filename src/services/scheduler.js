@@ -51,7 +51,9 @@ function runNotesWithLabel(runAttrValue) {
 }
 
 sqlInit.dbReady.then(() => {
-    cls.init(() => hiddenSubtreeService.checkHiddenSubtree());
+    cls.init(() => {
+        hiddenSubtreeService.checkHiddenSubtree();
+    });
 
     if (!process.env.TRILIUM_SAFE_MODE) {
         setTimeout(cls.wrap(() => runNotesWithLabel('backendStartup')), 10 * 1000);
