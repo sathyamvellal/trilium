@@ -132,15 +132,41 @@ function getEditedNotesOnDate(req) {
         notes = notes.filter(note => note.hasAncestor(hoistedNoteId));
     }
 
-    notes = notes.map(note => note.getPojo());
+    return notes.map(note => {
+        const notePath = note.isDeleted ? null : getNotePathData(note);
 
-    for (const note of notes) {
-        const notePath = note.isDeleted ? null : beccaService.getNotePath(note.noteId);
+        const notePojo = note.getPojo();
+        notePojo.notePath = notePath ? notePath.notePath : null;
 
-        note.notePath = notePath ? notePath.notePath : null;
+        return notePojo;
+    });
+
+}
+
+function getNotePathData(note) {
+    const retPath = note.getBestNotePath();
+
+    if (retPath) {
+        const noteTitle = beccaService.getNoteTitleForPath(retPath);
+
+        let branchId;
+
+        if (note.isRoot()) {
+            branchId = 'none_root';
+        }
+        else {
+            const parentNote = note.parents[0];
+            branchId = becca.getBranchFromChildAndParent(note.noteId, parentNote.noteId).branchId;
+        }
+
+        return {
+            noteId: note.noteId,
+            branchId: branchId,
+            title: noteTitle,
+            notePath: retPath,
+            path: retPath.join('/')
+        };
     }
-
-    return notes;
 }
 
 module.exports = {

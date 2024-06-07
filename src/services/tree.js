@@ -31,12 +31,12 @@ function getNotes(noteIds) {
 
 function validateParentChild(parentNoteId, childNoteId, branchId = null) {
     if (['root', '_hidden', '_share', '_lbRoot', '_lbAvailableLaunchers', '_lbVisibleLaunchers'].includes(childNoteId)) {
-        return { success: false, message: `Cannot change this note's location.`};
+        return { branch: null, success: false, message: `Cannot change this note's location.`};
     }
 
     if (parentNoteId === 'none') {
         // this shouldn't happen
-        return { success: false, message: `Cannot move anything into 'none' parent.` };
+        return { branch: null, success: false, message: `Cannot move anything into 'none' parent.` };
     }
 
     const existing = getExistingBranch(parentNoteId, childNoteId);
@@ -46,6 +46,7 @@ function validateParentChild(parentNoteId, childNoteId, branchId = null) {
         const childNote = becca.getNote(childNoteId);
 
         return {
+            branch: existing,
             success: false,
             message: `Note "${childNote.title}" note already exists in the "${parentNote.title}".`
         };
@@ -53,6 +54,7 @@ function validateParentChild(parentNoteId, childNoteId, branchId = null) {
 
     if (!checkTreeCycle(parentNoteId, childNoteId)) {
         return {
+            branch: null,
             success: false,
             message: 'Moving/cloning note here would create cycle.'
         };
@@ -60,12 +62,13 @@ function validateParentChild(parentNoteId, childNoteId, branchId = null) {
 
     if (parentNoteId !== '_lbBookmarks' && becca.getNote(parentNoteId).type === 'launcher') {
         return {
+            branch: null,
             success: false,
             message: 'Launcher note cannot have any children.'
         };
     }
 
-    return { success: true };
+    return { branch: null, success: true };
 }
 
 function getExistingBranch(parentNoteId, childNoteId) {
@@ -123,9 +126,14 @@ function loadSubtreeNoteIds(parentNoteId, subtreeNoteIds) {
     }
 }
 
-function sortNotes(parentNoteId, customSortBy = 'title', reverse = false, foldersFirst = false) {
+function sortNotes(parentNoteId, customSortBy = 'title', reverse = false, foldersFirst = false, sortNatural = false, sortLocale) {
     if (!customSortBy) {
         customSortBy = 'title';
+    }
+
+    if (!sortLocale) {
+        // sortLocale can not be empty string or null value, default value must be set to undefined.
+        sortLocale = undefined;
     }
 
     sql.transactional(() => {
@@ -153,7 +161,14 @@ function sortNotes(parentNoteId, customSortBy = 'title', reverse = false, folder
             }
 
             function compare(a, b) {
-                return b === null || b === undefined || a < b ? -1 : 1;
+                if (!sortNatural){
+                    // alphabetical sort
+                    return b === null || b === undefined || a < b ? -1 : 1;
+                } else {
+                    // natural sort
+                    return a.localeCompare(b, sortLocale, {numeric: true, sensitivity: 'base'});
+                }
+
             }
 
             const topAEl = fetchValue(a, 'top');
@@ -224,8 +239,11 @@ function sortNotesIfNeeded(parentNoteId) {
     const sortReversed = parentNote.getLabelValue('sortDirection')?.toLowerCase() === "desc";
     const sortFoldersFirstLabel = parentNote.getLabel('sortFoldersFirst');
     const sortFoldersFirst = sortFoldersFirstLabel && sortFoldersFirstLabel.value.toLowerCase() !== "false";
+    const sortNaturalLabel = parentNote.getLabel('sortNatural');
+    const sortNatural = sortNaturalLabel && sortNaturalLabel.value.toLowerCase() !== "false";
+    const sortLocale = parentNote.getLabelValue('sortLocale');
 
-    sortNotes(parentNoteId, sortedLabel.value, sortReversed, sortFoldersFirst);
+    sortNotes(parentNoteId, sortedLabel.value, sortReversed, sortFoldersFirst, sortNatural, sortLocale);
 }
 
 /**

@@ -57,6 +57,7 @@ const backendLogRoute = require('./api/backend_log');
 const statsRoute = require('./api/stats');
 const fontsRoute = require('./api/fonts');
 const etapiTokensApiRoutes = require('./api/etapi_tokens');
+const otherRoute = require('./api/other');
 const shareRoutes = require('../share/routes');
 const etapiAuthRoutes = require('../etapi/auth');
 const etapiAppInfoRoutes = require('../etapi/app_info');
@@ -65,6 +66,7 @@ const etapiBranchRoutes = require('../etapi/branches');
 const etapiNoteRoutes = require('../etapi/notes');
 const etapiSpecialNoteRoutes = require('../etapi/special_notes');
 const etapiSpecRoute = require('../etapi/spec');
+const etapiBackupRoute = require('../etapi/backup');
 
 const csrfMiddleware = csurf({
     cookie: true,
@@ -143,7 +145,7 @@ function register(app) {
 
     apiRoute(PUT, '/api/notes/:noteId/clone-to-branch/:parentBranchId', cloningApiRoute.cloneNoteToBranch);
     apiRoute(PUT, '/api/notes/:noteId/toggle-in-parent/:parentNoteId/:present', cloningApiRoute.toggleNoteInParent);
-    apiRoute(PUT, '/api/notes/:noteId/clone-to-note/:parentNoteId', cloningApiRoute.cloneNoteToNote);
+    apiRoute(PUT, '/api/notes/:noteId/clone-to-note/:parentNoteId', cloningApiRoute.cloneNoteToParentNote);
     apiRoute(PUT, '/api/notes/:noteId/clone-after/:afterBranchId', cloningApiRoute.cloneNoteAfter);
 
     route(GET, '/api/notes/:branchId/export/:type/:format/:version/:taskId', [auth.checkApiAuthOrElectron], exportRoute.exportBranch);
@@ -304,6 +306,7 @@ function register(app) {
     apiRoute(POST, '/api/delete-notes-preview', notesApiRoute.getDeleteNotesPreview);
 
     route(GET, '/api/fonts', [auth.checkApiAuthOrElectron], fontsRoute.getFontCss);
+    apiRoute(GET, '/api/other/icon-usage', otherRoute.getIconUsage);
 
     apiRoute(GET, '/api/etapi-tokens', etapiTokensApiRoutes.getTokens);
     apiRoute(POST, '/api/etapi-tokens', etapiTokensApiRoutes.createToken);
@@ -319,6 +322,7 @@ function register(app) {
     etapiNoteRoutes.register(router);
     etapiSpecialNoteRoutes.register(router);
     etapiSpecRoute.register(router);
+    etapiBackupRoute.register(router);
 
     app.use('', router);
 }

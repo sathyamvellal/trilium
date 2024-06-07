@@ -231,12 +231,6 @@ async function importZip(taskContext, fileBuffer, importRootNote) {
 
         const {noteMeta} = getMeta(absUrl);
 
-        if (!noteMeta) {
-            log.info(`Could not find note meta for URL '${absUrl}'.`);
-
-            return null;
-        }
-
         const targetNoteId = getNoteId(noteMeta, absUrl);
         return targetNoteId;
     }
@@ -245,6 +239,8 @@ async function importZip(taskContext, fileBuffer, importRootNote) {
         function isUrlAbsolute(url) {
             return /^(?:[a-z]+:)?\/\//i.test(url);
         }
+
+        content = removeTrilumTags(content);
 
         content = content.replace(/<h1>([^<]*)<\/h1>/gi, (match, text) => {
             if (noteTitle.trim() === text.trim()) {
@@ -328,6 +324,18 @@ async function importZip(taskContext, fileBuffer, importRootNote) {
 
         content = content.trim();
 
+        return content;
+    }
+
+    function removeTrilumTags(content) {
+        const tagsToRemove = [
+            '<h1 data-trilium-h1>([^<]*)<\/h1>',
+            '<title data-trilium-title>([^<]*)<\/title>'
+        ]
+        for (const tag of tagsToRemove) { 
+            let re = new RegExp(tag, "gi");
+            content = content.replace(re, '');
+        }
         return content;
     }
 

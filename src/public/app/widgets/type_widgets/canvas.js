@@ -12,6 +12,14 @@ const TPL = `
         .excalidraw .App-menu_top .buttonList {
             display: flex;
         }
+        
+        /* Conflict between excalidraw and bootstrap classes keeps the menu hidden */
+        /* https://github.com/zadam/trilium/issues/3780 */
+        /* https://github.com/excalidraw/excalidraw/issues/6567 */
+        .excalidraw .dropdown-menu {
+            display: block;
+        }
+
 
         .excalidraw-wrapper {
             height: 100%;
@@ -277,6 +285,8 @@ export default class ExcalidrawTypeWidget extends TypeWidget {
         })
 
         const content = {
+            type: "excalidraw",
+            version: 2,
             _meta: "This note has type `canvas`. It uses excalidraw and stores an exported svg alongside.",
             elements, // excalidraw
             appState, // excalidraw

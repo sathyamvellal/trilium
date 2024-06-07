@@ -247,6 +247,11 @@ class FNote {
         return this.__filterAttrs(this.__getCachedAttributes([]), type, name);
     }
 
+    /**
+     * @param {string[]} path
+     * @return {FAttribute[]}
+     * @private
+     */
     __getCachedAttributes(path) {
         // notes/clones cannot form tree cycles, it is possible to create attribute inheritance cycle via templates
         // when template instance is a parent of template itself
@@ -299,63 +304,49 @@ class FNote {
         return this.noteId === 'root';
     }
 
-    getAllNotePaths(encounteredNoteIds = null) {
+    /**
+     * Gives all possible note paths leading to this note. Paths containing search note are ignored (could form cycles)
+     *
+     * @returns {string[][]} - array of notePaths (each represented by array of noteIds constituting the particular note path)
+     */
+    getAllNotePaths() {
         if (this.noteId === 'root') {
             return [['root']];
         }
 
-        if (!encounteredNoteIds) {
-            encounteredNoteIds = new Set();
+        const parentNotes = this.getParentNotes().filter(note => note.type !== 'search');
+        let notePaths = [];
+
+        if (parentNotes.length === 1) { // optimization for most common case
+            notePaths = parentNotes[0].getAllNotePaths();
+        } else {
+            notePaths = parentNotes.flatMap(parentNote => parentNote.getAllNotePaths());
         }
 
-        encounteredNoteIds.add(this.noteId);
-
-        const parentNotes = this.getParentNotes();
-        let paths;
-
-        if (parentNotes.length === 1) { // optimization for the most common case
-            if (encounteredNoteIds.has(parentNotes[0].noteId)) {
-                return [];
-            }
-            else {
-                paths = parentNotes[0].getAllNotePaths(encounteredNoteIds);
-            }
-        }
-        else {
-            paths = [];
-
-            for (const parentNote of parentNotes) {
-                if (encounteredNoteIds.has(parentNote.noteId)) {
-                    continue;
-                }
-
-                const newSet = new Set(encounteredNoteIds);
-
-                paths.push(...parentNote.getAllNotePaths(newSet));
-            }
+        for (const notePath of notePaths) {
+            notePath.push(this.noteId);
         }
 
-        for (const path of paths) {
-            path.push(this.noteId);
-        }
-
-        return paths;
+        return notePaths;
     }
 
-    getSortedNotePaths(hoistedNotePath = 'root') {
+    /**
+     * @param {string} [hoistedNoteId='root']
+     * @return {Array<{isArchived: boolean, isInHoistedSubTree: boolean, notePath: Array<string>, isHidden: boolean}>}
+     */
+    getSortedNotePathRecords(hoistedNoteId = 'root') {
+        const isHoistedRoot = hoistedNoteId === 'root';
+
         const notePaths = this.getAllNotePaths().map(path => ({
             notePath: path,
-            isInHoistedSubTree: path.includes(hoistedNotePath),
-            isArchived: path.find(noteId => froca.notes[noteId].isArchived),
-            isSearch: path.find(noteId => froca.notes[noteId].type === 'search'),
+            isInHoistedSubTree: isHoistedRoot || path.includes(hoistedNoteId),
+            isArchived: path.some(noteId => froca.notes[noteId].isArchived),
             isHidden: path.includes('_hidden')
         }));
 
         notePaths.sort((a, b) => {
             if (a.isInHoistedSubTree !== b.isInHoistedSubTree) {
                 return a.isInHoistedSubTree ? -1 : 1;
-            } else if (a.isSearch !== b.isSearch) {
-                return a.isSearch ? 1 : -1;
             } else if (a.isArchived !== b.isArchived) {
                 return a.isArchived ? 1 : -1;
             } else if (a.isHidden !== b.isHidden) {
@@ -369,6 +360,28 @@ class FNote {
     }
 
     /**
+     * Returns note path considered to be the "best"
+     *
+     * @param {string} [hoistedNoteId='root']
+     * @return {string[]} array of noteIds constituting the particular note path
+     */
+    getBestNotePath(hoistedNoteId = 'root') {
+        return this.getSortedNotePathRecords(hoistedNoteId)[0]?.notePath;
+    }
+
+    /**
+     * Returns note path considered to be the "best"
+     *
+     * @param {string} [hoistedNoteId='root']
+     * @return {string} serialized note path (e.g. 'root/a1h315/js725h')
+     */
+    getBestNotePathString(hoistedNoteId = 'root') {
+        const notePath = this.getBestNotePath(hoistedNoteId);
+
+        return notePath?.join("/");
+    }
+
+    /**
      * @return boolean - true if there's no non-hidden path, note is not cloned to the visible tree
      */
     isHiddenCompletely() {
@@ -379,7 +392,7 @@ class FNote {
         for (const parentNote of this.getParentNotes()) {
             if (parentNote.noteId === 'root') {
                 return false;
-            } else if (parentNote.noteId === '_hidden') {
+            } else if (parentNote.noteId === '_hidden' || parentNote.type === 'search') {
                 continue;
             }
 
@@ -391,6 +404,13 @@ class FNote {
         return true;
     }
 
+    /**
+     * @param {FAttribute[]} attributes
+     * @param {string} type
+     * @param {string} name
+     * @return {FAttribute[]}
+     * @private
+     */
     __filterAttrs(attributes, type, name) {
         this.__validateTypeName(type, name);
 
@@ -527,7 +547,9 @@ class FNote {
      * @returns {boolean} true if note has an attribute with given type and name (including inherited)
      */
     hasAttribute(type, name) {
-        return !!this.getAttribute(type, name);
+        const attributes = this.getAttributes();
+
+        return attributes.some(attr => attr.name === name && attr.type === type);
     }
 
     /**
@@ -594,6 +616,20 @@ class FNote {
      * @returns {boolean} true if label exists (including inherited)
      */
     hasLabel(name) { return this.hasAttribute(LABEL, name); }
+
+    /**
+     * @param {string} name - label name
+     * @returns {boolean} true if label exists (including inherited) and does not have "false" value.
+     */
+    isLabelTruthy(name) {
+        const label = this.getLabel(name);
+
+        if (!label) {
+            return false;
+        }
+
+        return label && label.value !== 'false';
+    }
 
     /**
      * @param {string} name - relation name
@@ -706,7 +742,14 @@ class FNote {
             });
 
         // attrs are not resorted if position changes after initial load
-        promotedAttrs.sort((a, b) => a.position < b.position ? -1 : 1);
+        promotedAttrs.sort((a, b) => {
+            if (a.noteId === b.noteId) {
+                return a.position < b.position ? -1 : 1;
+            } else {
+                // inherited promoted attributes should stay grouped: https://github.com/zadam/trilium/issues/3761
+                return a.noteId < b.noteId ? -1 : 1;
+            }
+        });
 
         return promotedAttrs;
     }

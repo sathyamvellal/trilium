@@ -137,13 +137,13 @@ function BackendScriptApi(currentNote, apiParams) {
     this.getNoteWithLabel = attributeService.getNoteWithLabel;
 
     /**
-     * If there's no branch between note and parent note, create one. Otherwise, do nothing.
+     * If there's no branch between note and parent note, create one. Otherwise, do nothing. Returns the new or existing branch.
      *
      * @method
      * @param {string} noteId
      * @param {string} parentNoteId
      * @param {string} prefix - if branch will be created between note and parent note, set this prefix
-     * @returns {void}
+     * @returns {{branch: BBranch|null}}
      */
     this.ensureNoteIsPresentInParent = cloningService.ensureNoteIsPresentInParent;
 
@@ -471,11 +471,11 @@ function BackendScriptApi(currentNote, apiParams) {
         if (opts.type === 'script' && !opts.scriptNoteId) { throw new Error("scriptNoteId is mandatory for launchers of type 'script'"); }
         if (opts.type === 'customWidget' && !opts.widgetNoteId) { throw new Error("widgetNoteId is mandatory for launchers of type 'customWidget'"); }
 
-        const parentNoteId = !!opts.isVisible ? '_lbVisibleLaunchers' : '_lbAvailableLaunchers';
+        const parentNoteId = opts.isVisible ? '_lbVisibleLaunchers' : '_lbAvailableLaunchers';
         const noteId = 'al_' + opts.id;
 
         const launcherNote =
-            becca.getNote(opts.id) ||
+            becca.getNote(noteId) ||
             specialNotesService.createLauncher({
                 noteId: noteId,
                 parentNoteId: parentNoteId,
@@ -514,7 +514,7 @@ function BackendScriptApi(currentNote, apiParams) {
         if (opts.icon) {
             launcherNote.setLabel('iconClass', `bx ${opts.icon}`);
         } else {
-            launcherNote.removeLabel('keyboardShortcut');
+            launcherNote.removeLabel('iconClass');
         }
 
         return {note: launcherNote};

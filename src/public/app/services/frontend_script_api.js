@@ -66,7 +66,7 @@ function FrontendScriptApi(startNote, currentNote, originEntity = null, $contain
         await ws.waitForMaxKnownEntityChangeId();
 
         await appContext.tabManager.getActiveContext().setNote(notePath);
-        appContext.triggerEvent('focusAndSelectTitle');
+        await appContext.triggerEvent('focusAndSelectTitle');
     };
 
     /**
@@ -83,7 +83,7 @@ function FrontendScriptApi(startNote, currentNote, originEntity = null, $contain
         await appContext.tabManager.openContextWithNote(notePath, { activate });
 
         if (activate) {
-            appContext.triggerEvent('focusAndSelectTitle');
+            await appContext.triggerEvent('focusAndSelectTitle');
         }
     };
 
@@ -101,10 +101,10 @@ function FrontendScriptApi(startNote, currentNote, originEntity = null, $contain
         const subContexts = appContext.tabManager.getActiveContext().getSubContexts();
         const {ntxId} = subContexts[subContexts.length - 1];
 
-        appContext.triggerCommand("openNewNoteSplit", {ntxId, notePath});
+        await appContext.triggerCommand("openNewNoteSplit", {ntxId, notePath});
 
         if (activate) {
-            appContext.triggerEvent('focusAndSelectTitle');
+            await appContext.triggerEvent('focusAndSelectTitle');
         }
     };
 
@@ -523,6 +523,13 @@ function FrontendScriptApi(startNote, currentNote, originEntity = null, $contain
      * @returns {string} random string
      */
     this.randomString = utils.randomString;
+
+    /**
+     * @method
+     * @param {int} size in bytes
+     * @return {string} formatted string
+     */
+    this.formatNoteSize = utils.formatNoteSize;
 
     this.logMessages = {};
     this.logSpacedUpdates = {};

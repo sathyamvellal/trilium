@@ -54,6 +54,9 @@ import HideFloatingButtonsButton from "../widgets/floating_buttons/hide_floating
 import TitleRowContainer from "../widgets/containers/title_row_container.js";
 import RibbonRowContainer from "../widgets/containers/ribbon_row_container.js";
 import TabRowContainer from "../widgets/containers/tab_row_container.js";
+import RibbonContainer from "./ribbon_container.js";
+import ScriptExecutorWidget from "../widgets/ribbon_widgets/script_executor.js";
+import MovePaneButton from "../widgets/buttons/move_pane_button.js";
 
 export default class DesktopLayout {
     constructor(customWidgets) {
@@ -93,9 +96,43 @@ export default class DesktopLayout {
                         .collapsible()
                         .id('center-pane')
                         .child(new SplitNoteContainer(() =>
-                                    new NoteWrapperWidget()
-                                    .child(new TitleRowContainer())
-                                    .child(new RibbonRowContainer())
+                                new NoteWrapperWidget()
+                                    .child(new FlexContainer('row').class('title-row')
+                                        .css("height", "50px")
+                                        .css("min-height", "50px")
+                                        .css('align-items', "center")
+                                        .cssBlock('.title-row > * { margin: 5px; }')
+                                        .child(new NoteIconWidget())
+                                        .child(new NoteTitleWidget())
+                                        .child(new SpacerWidget(0, 1))
+                                        .child(new MovePaneButton(true))
+                                        .child(new MovePaneButton(false))
+                                        .child(new ClosePaneButton())
+                                        .child(new CreatePaneButton())
+                                    )
+                                    .child(
+                                        new RibbonContainer()
+                                            // order of the widgets matter. Some of these want to "activate" themselves
+                                            // when visible, when this happens to multiple of them, the first one "wins".
+                                            // promoted attributes should always win.
+                                            .ribbon(new PromotedAttributesWidget())
+                                            .ribbon(new ScriptExecutorWidget())
+                                            .ribbon(new SearchDefinitionWidget())
+                                            .ribbon(new EditedNotesWidget())
+                                            .ribbon(new BookPropertiesWidget())
+                                            .ribbon(new NotePropertiesWidget())
+                                            .ribbon(new FilePropertiesWidget())
+                                            .ribbon(new ImagePropertiesWidget())
+                                            .ribbon(new BasicPropertiesWidget())
+                                            .ribbon(new OwnedAttributeListWidget())
+                                            .ribbon(new InheritedAttributesWidget())
+                                            .ribbon(new NotePathsWidget())
+                                            .ribbon(new NoteMapRibbonWidget())
+                                            .ribbon(new SimilarNotesWidget())
+                                            .ribbon(new NoteInfoWidget())
+                                            .button(new NoteRevisionsButton())
+                                            .button(new NoteActionsWidget())
+                                    )
                                     .child(new SharedInfoWidget())
                                     .child(new NoteUpdateStatusWidget())
                                     .child(new FloatingButtons()

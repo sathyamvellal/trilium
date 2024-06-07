@@ -280,14 +280,7 @@ export default class TabRowWidget extends BasicWidget {
             this.layoutTabs();
         };
 
-        // ResizeObserver exists only in FF69
-        if (typeof ResizeObserver !== "undefined") {
-            new ResizeObserver(resizeListener).observe(this.$widget[0]);
-        }
-        else {
-            // for older firefox
-            window.addEventListener('resize', resizeListener);
-        }
+        new ResizeObserver(resizeListener).observe(this.$widget[0]);
 
         this.tabEls.forEach((tabEl) => this.setTabCloseEvent(tabEl));
     }
@@ -614,6 +607,17 @@ export default class TabRowWidget extends BasicWidget {
 
     noteSwitchedEvent({noteContext}) {
         this.updateTabById(noteContext.mainNtxId || noteContext.ntxId);
+    }
+
+    noteContextReorderEvent({oldMainNtxId, newMainNtxId}) {
+        if (!oldMainNtxId || !newMainNtxId) {
+            // no need to update tab row
+            return;
+        }
+
+        // update tab id for the new main context
+        this.getTabById(oldMainNtxId).attr("data-ntx-id", newMainNtxId);
+        this.updateTabById(newMainNtxId);        
     }
 
     updateTabById(ntxId) {

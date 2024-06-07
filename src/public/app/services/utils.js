@@ -29,7 +29,7 @@ function formatTimeWithSeconds(date) {
 
 // this is producing local time!
 function formatDate(date) {
-//    return padNum(date.getDate()) + ". " + padNum(date.getMonth() + 1) + ". " + date.getFullYear();
+    //    return padNum(date.getDate()) + ". " + padNum(date.getMonth() + 1) + ". " + date.getFullYear();
     // instead of european format we'll just use ISO as that's pretty unambiguous
 
     return formatDateISO(date);
@@ -45,7 +45,7 @@ function formatDateTime(date) {
 }
 
 function localNowDateTime() {
-    return dayjs().format('YYYY-MM-DD HH:mm:ss.SSSZZ')
+    return dayjs().format('YYYY-MM-DD HH:mm:ss.SSSZZ');
 }
 
 function now() {
@@ -101,7 +101,7 @@ async function stopWatch(what, func) {
 }
 
 function formatValueWithWhitespace(val) {
-    return /[^\w_-]/.test(val) ? `"${val}"` : val;
+    return /[^\w-]/.test(val) ? `"${val}"` : val;
 }
 
 function formatLabel(label) {
@@ -318,7 +318,7 @@ function initHelpDropdown($el) {
     initHelpButtons($dropdownMenu);
 }
 
-const wikiBaseUrl = "https://github.com/zadam/trilium/wiki/"
+const wikiBaseUrl = "https://github.com/zadam/trilium/wiki/";
 
 function openHelp(e) {
     window.open(wikiBaseUrl + $(e.target).attr("data-help-page"), '_blank');
@@ -329,7 +329,7 @@ function initHelpButtons($el) {
     // so we do it manually
     $el.on("click", e => {
         if ($(e.target).attr("data-help-page")) {
-            openHelp(e)
+            openHelp(e);
         }
     });
 }
@@ -352,6 +352,17 @@ function sleep(time_ms) {
 
 function escapeRegExp(str) {
     return str.replace(/([.*+?^=!:${}()|\[\]\/\\])/g, "\\$1");
+}
+
+function formatNoteSize(size) {
+    size = Math.max(Math.round(size / 1024), 1);
+
+    if (size < 1024) {
+        return `${size} KiB`;
+    }
+    else {
+        return `${Math.round(size / 102.4) / 10} MiB`;
+    }
 }
 
 export default {
@@ -396,5 +407,6 @@ export default {
     filterAttributeName,
     isValidAttributeName,
     sleep,
-    escapeRegExp
+    escapeRegExp,
+    formatNoteSize
 };

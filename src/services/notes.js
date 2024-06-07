@@ -21,18 +21,22 @@ const dayjs = require("dayjs");
 const htmlSanitizer = require("./html_sanitizer");
 const ValidationError = require("../errors/validation_error");
 const noteTypesService = require("./note_types");
+const fs = require("fs");
 
-function getNewNotePosition(parentNoteId) {
-    const note = becca.notes[parentNoteId];
+function getNewNotePosition(parentNote) {
+    if (parentNote.isLabelTruthy('newNotesOnTop')) {
+        const minNotePos = parentNote.getChildBranches()
+            .filter(branch => branch.noteId !== '_hidden') // has "always last" note position
+            .reduce((min, note) => Math.min(min, note.notePosition), 0);
 
-    if (!note) {
-        throw new Error(`Can't find note ${parentNoteId}`);
+        return minNotePos - 10;
+    } else {
+        const maxNotePos = parentNote.getChildBranches()
+            .filter(branch => branch.noteId !== '_hidden') // has "always last" note position
+            .reduce((max, note) => Math.max(max, note.notePosition), 0);
+
+        return maxNotePos + 10;
     }
-
-    const maxNotePos = note.getChildBranches()
-        .reduce((max, note) => Math.max(max, note.notePosition), 0);
-
-    return maxNotePos + 10;
 }
 
 function triggerNoteTitleChanged(note) {
@@ -52,11 +56,10 @@ function deriveMime(type, mime) {
 }
 
 function copyChildAttributes(parentNote, childNote) {
-    const hasAlreadyTemplate = childNote.hasRelation('template');
-
     for (const attr of parentNote.getAttributes()) {
         if (attr.name.startsWith("child:")) {
             const name = attr.name.substr(6);
+            const hasAlreadyTemplate = childNote.hasRelation('template');
 
             if (hasAlreadyTemplate && attr.type === 'relation' && name === 'template') {
                 // if the note already has a template, it means the template was chosen by the user explicitly
@@ -172,7 +175,7 @@ function createNewNote(params) {
 
             // TODO: think about what can happen if the note already exists with the forced ID
             //       I guess on DB it's going to be fine, but becca references between entities
-            //       might get messed up (two Note instance for the same ID existing in the references)
+            //       might get messed up (two note instances for the same ID existing in the references)
             note = new BNote({
                 noteId: params.noteId, // optionally can force specific noteId
                 title: params.title,
@@ -186,14 +189,14 @@ function createNewNote(params) {
             branch = new BBranch({
                 noteId: note.noteId,
                 parentNoteId: params.parentNoteId,
-                notePosition: params.notePosition !== undefined ? params.notePosition : getNewNotePosition(params.parentNoteId),
+                notePosition: params.notePosition !== undefined ? params.notePosition : getNewNotePosition(parentNote),
                 prefix: params.prefix,
                 isExpanded: !!params.isExpanded
             }).save();
         }
         finally {
             if (!isEntityEventsDisabled) {
-                // re-enable entity events only if there were previously enabled
+                // re-enable entity events only if they were previously enabled
                 // (they can be disabled in case of import)
                 cls.enableEntityEvents();
             }
@@ -213,27 +216,14 @@ function createNewNote(params) {
 
         copyChildAttributes(parentNote, note);
 
+        eventService.emit(eventService.ENTITY_CREATED, { entityName: 'notes', entity: note });
+        eventService.emit(eventService.ENTITY_CHANGED, { entityName: 'notes', entity: note });
         triggerNoteTitleChanged(note);
-
-        eventService.emit(eventService.ENTITY_CREATED, {
-            entityName: 'notes',
-            entity: note
-        });
-
-        eventService.emit(eventService.ENTITY_CREATED, {
-            entityName: 'note_contents',
-            entity: note
-        });
-
-        eventService.emit(eventService.ENTITY_CREATED, {
-            entityName: 'branches',
-            entity: branch
-        });
-
-        eventService.emit(eventService.CHILD_NOTE_CREATED, {
-            childNote: note,
-            parentNote: parentNote
-        });
+        // note_contents doesn't use "created" event
+        eventService.emit(eventService.ENTITY_CHANGED, { entityName: 'note_contents', entity: note });
+        eventService.emit(eventService.ENTITY_CREATED, { entityName: 'branches', entity: branch });
+        eventService.emit(eventService.ENTITY_CHANGED, { entityName: 'branches', entity: branch });
+        eventService.emit(eventService.CHILD_NOTE_CREATED, { childNote: note, parentNote: parentNote });
 
         log.info(`Created new note '${note.noteId}', branch '${branch.branchId}' of type '${note.type}', mime '${note.mime}'`);
 
@@ -374,7 +364,24 @@ const imageUrlToNoteIdMapping = {};
 
 async function downloadImage(noteId, imageUrl) {
     try {
-        const imageBuffer = await request.getImage(imageUrl);
+        let imageBuffer;
+
+        if (imageUrl.toLowerCase().startsWith("file://")) {
+            imageBuffer = await new Promise((res, rej) => {
+                const localFilePath = imageUrl.substr("file://".length);
+
+                return fs.readFile(localFilePath, (err, data) => {
+                    if (err) {
+                        rej(err);
+                    } else {
+                        res(data);
+                    }
+                });
+            });
+        } else {
+            imageBuffer = await request.getImage(imageUrl);
+        }
+
         const parsedUrl = url.parse(imageUrl);
         const title = path.basename(parsedUrl.pathname);
 
@@ -840,7 +847,7 @@ function duplicateSubtree(origNoteId, newParentNoteId) {
         throw new Error('Duplicating root is not possible');
     }
 
-    log.info(`Duplicating ${origNoteId} subtree into ${newParentNoteId}`);
+    log.info(`Duplicating '${origNoteId}' subtree into '${newParentNoteId}'`);
 
     const origNote = becca.notes[origNoteId];
     // might be null if orig note is not in the target newParentNoteId
@@ -918,7 +925,8 @@ function duplicateSubtreeInner(origNote, origBranch, newParentNoteId, noteIdMapp
                 attr.value = noteIdMapping[attr.value];
             }
 
-            attr.save();
+            // the relation targets may not be created yet, the mapping is pre-generated
+            attr.save({skipValidation: true});
         }
 
         for (const childBranch of origNote.getChildBranches()) {

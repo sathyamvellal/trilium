@@ -53,7 +53,7 @@ export default class EditableCodeTypeWidget extends TypeWidget {
             matchBrackets: true,
             keyMap: options.is('vimKeymapEnabled') ? "vim": "default",
             matchTags: {bothTags: true},
-            highlightSelectionMatches: {showToken: /\w/, annotateScrollbar: false},
+            highlightSelectionMatches: {showToken: false, annotateScrollbar: false},
             lint: true,
             gutters: ["CodeMirror-lint-markers"],
             lineNumbers: true,
@@ -62,7 +62,7 @@ export default class EditableCodeTypeWidget extends TypeWidget {
             // all the way to the bottom of the note. With line wrap there's no horizontal scrollbar so no problem
             lineWrapping: options.is('codeLineWrapEnabled'),
             dragDrop: false, // with true the editor inlines dropped files which is not what we expect
-            placeholder: "Type the content of your code note here..."
+            placeholder: "Type the content of your code note here...",
         });
 
         this.codeEditor.on('change', () => this.spacedUpdate.scheduleUpdate());
@@ -77,12 +77,15 @@ export default class EditableCodeTypeWidget extends TypeWidget {
             this.codeEditor.setValue(noteComplement.content || "");
             this.codeEditor.clearHistory();
 
-            const info = CodeMirror.findModeByMIME(note.mime);
-
-            if (info) {
-                this.codeEditor.setOption("mode", info.mime);
-                CodeMirror.autoLoadMode(this.codeEditor, info.mode);
+            let info = CodeMirror.findModeByMIME(note.mime);
+            if (!info) {
+                // Switch back to plain text if CodeMirror does not have a mode for whatever MIME type we're editing.
+                // To avoid inheriting a mode from a previously open code note.
+                info = CodeMirror.findModeByMIME("text/plain");
             }
+
+            this.codeEditor.setOption("mode", info.mime);
+            CodeMirror.autoLoadMode(this.codeEditor, info.mode);
         });
 
         this.show();

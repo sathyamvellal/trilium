@@ -4,7 +4,6 @@ import mimeTypesService from '../../services/mime_types.js';
 import utils from "../../services/utils.js";
 import keyboardActionService from "../../services/keyboard_actions.js";
 import froca from "../../services/froca.js";
-import treeService from "../../services/tree.js";
 import noteCreateService from "../../services/note_create.js";
 import AbstractTextTypeWidget from "./abstract_text_type_widget.js";
 import link from "../../services/link.js";
@@ -52,7 +51,7 @@ const TPL = `
         cursor: text !important;
     }
     
-    .note-detail-editable-text *:not(figure):first-child {
+    .note-detail-editable-text *:not(figure,.include-note):first-child {
         margin-top: 0 !important;
     }
          
@@ -186,9 +185,8 @@ export default class EditableTextTypeWidget extends AbstractTextTypeWidget {
     async doRefresh(note) {
         const noteComplement = await froca.getNoteComplement(note.noteId);
 
-        await this.spacedUpdate.allowUpdateWithoutChange(() => {
-            this.watchdog.editor.setData(noteComplement.content || "");
-        });
+        await this.spacedUpdate.allowUpdateWithoutChange(() =>
+            this.watchdog.editor.setData(noteComplement.content || ""));
     }
 
     getData() {
@@ -378,7 +376,7 @@ export default class EditableTextTypeWidget extends AbstractTextTypeWidget {
             return;
         }
 
-        return treeService.getSomeNotePath(resp.note);
+        return resp.note.getBestNotePathString();
     }
 
     async refreshIncludedNoteEvent({noteId}) {

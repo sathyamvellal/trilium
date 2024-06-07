@@ -176,9 +176,12 @@ class NoteContext extends Component {
     }
 
     getTabState() {
-        if (!this.notePath && this.hoistedNoteId === 'root') {
+        if (this.hoistedNoteId !== 'root') {
             // keeping empty hoisted tab is esp. important for mobile (e.g. opened launcher config)
-            return null;
+
+            if (!this.notePath && this.getSubContexts().length === 0) {
+                return null;
+            }
         }
 
         return {
@@ -223,6 +226,10 @@ class NoteContext extends Component {
         }
 
         if (this.note.hasLabel('readOnly')) {
+            return true;
+        }
+
+        if (this.viewScope.viewMode === 'source') {
             return true;
         }
 

@@ -12,6 +12,7 @@ const TaskContext = require("../../services/task_context");
 const dayjs = require("dayjs");
 const utc = require('dayjs/plugin/utc');
 const eventService = require("../../services/events");
+const cls = require("../../services/cls.js");
 dayjs.extend(utc);
 
 const LABEL = 'label';
@@ -84,7 +85,7 @@ class BNote extends AbstractBeccaEntity {
         this.decrypt();
 
         /** @type {string|null} */
-        this.flatTextCache = null;
+        this.__flatTextCache = null;
 
         return this;
     }
@@ -97,7 +98,7 @@ class BNote extends AbstractBeccaEntity {
          * @private */
         this.parents = [];
         /** @type {BNote[]}
-         * @private*/
+         * @private */
         this.children = [];
         /** @type {BAttribute[]}
          * @private */
@@ -107,18 +108,18 @@ class BNote extends AbstractBeccaEntity {
          * @private */
         this.__attributeCache = null;
         /** @type {BAttribute[]|null}
-         * @private*/
-        this.inheritableAttributeCache = null;
+         * @private */
+        this.__inheritableAttributeCache = null;
 
         /** @type {BAttribute[]}
-         * @private*/
+         * @private */
         this.targetRelations = [];
 
         this.becca.addNote(this.noteId, this);
 
         /** @type {BNote[]|null}
          * @private */
-        this.ancestorCache = null;
+        this.__ancestorCache = null;
 
         // following attributes are filled during searching from database
 
@@ -316,10 +317,12 @@ class BNote extends AbstractBeccaEntity {
             isSynced: true
         });
 
-        eventService.emit(eventService.ENTITY_CHANGED, {
-            entityName: 'note_contents',
-            entity: this
-        });
+        if (!cls.isEntityEventsDisabled()) {
+            eventService.emit(eventService.ENTITY_CHANGED, {
+                entityName: 'note_contents',
+                entity: this
+            });
+        }
     }
 
     setJsonContent(content) {
@@ -454,11 +457,11 @@ class BNote extends AbstractBeccaEntity {
                 }
             }
 
-            this.inheritableAttributeCache = [];
+            this.__inheritableAttributeCache = [];
 
             for (const attr of this.__attributeCache) {
                 if (attr.isInheritable) {
-                    this.inheritableAttributeCache.push(attr);
+                    this.__inheritableAttributeCache.push(attr);
                 }
             }
         }
@@ -475,11 +478,11 @@ class BNote extends AbstractBeccaEntity {
             return [];
         }
 
-        if (!this.inheritableAttributeCache) {
-            this.__getAttributes(path); // will refresh also this.inheritableAttributeCache
+        if (!this.__inheritableAttributeCache) {
+            this.__getAttributes(path); // will refresh also this.__inheritableAttributeCache
         }
 
-        return this.inheritableAttributeCache;
+        return this.__inheritableAttributeCache;
     }
 
     __validateTypeName(type, name) {
@@ -531,6 +534,20 @@ class BNote extends AbstractBeccaEntity {
      * @returns {boolean} true if label exists (including inherited)
      */
     hasLabel(name, value) { return this.hasAttribute(LABEL, name, value); }
+
+    /**
+     * @param {string} name - label name
+     * @returns {boolean} true if label exists (including inherited) and does not have "false" value.
+     */
+    isLabelTruthy(name) {
+        const label = this.getLabel(name);
+
+        if (!label) {
+            return false;
+        }
+
+        return label && label.value !== 'false';
+    }
 
     /**
      * @param {string} name - label name
@@ -733,6 +750,21 @@ class BNote extends AbstractBeccaEntity {
         return this.hasAttribute('label', 'archived');
     }
 
+    areAllNotePathsArchived() {
+        // there's a slight difference between note being itself archived and all its note paths being archived
+        // - note is archived when it itself has an archived label or inherits it
+        // - note does not have or inherit archived label, but each note paths contains a note with (non-inheritable)
+        //   archived label
+
+        const bestNotePathRecord = this.getSortedNotePathRecords()[0];
+
+        if (!bestNotePathRecord) {
+            throw new Error(`No note path available for note '${this.noteId}'`);
+        }
+
+        return bestNotePathRecord.isArchived;
+    }
+
     hasInheritableArchivedLabel() {
         for (const attr of this.getAttributes()) {
             if (attr.name === 'archived' && attr.type === LABEL && attr.isInheritable) {
@@ -784,40 +816,40 @@ class BNote extends AbstractBeccaEntity {
      * @returns {string} - returns flattened textual representation of note, prefixes and attributes
      */
     getFlatText() {
-        if (!this.flatTextCache) {
-            this.flatTextCache = `${this.noteId} ${this.type} ${this.mime} `;
+        if (!this.__flatTextCache) {
+            this.__flatTextCache = `${this.noteId} ${this.type} ${this.mime} `;
 
             for (const branch of this.parentBranches) {
                 if (branch.prefix) {
-                    this.flatTextCache += `${branch.prefix} `;
+                    this.__flatTextCache += `${branch.prefix} `;
                 }
             }
 
-            this.flatTextCache += `${this.title} `;
+            this.__flatTextCache += `${this.title} `;
 
             for (const attr of this.getAttributes()) {
                 // it's best to use space as separator since spaces are filtered from the search string by the tokenization into words
-                this.flatTextCache += `${attr.type === 'label' ? '#' : '~'}${attr.name}`;
+                this.__flatTextCache += `${attr.type === 'label' ? '#' : '~'}${attr.name}`;
 
                 if (attr.value) {
-                    this.flatTextCache += `=${attr.value}`;
+                    this.__flatTextCache += `=${attr.value}`;
                 }
 
-                this.flatTextCache += ' ';
+                this.__flatTextCache += ' ';
             }
 
-            this.flatTextCache = utils.normalize(this.flatTextCache);
+            this.__flatTextCache = utils.normalize(this.__flatTextCache);
         }
 
-        return this.flatTextCache;
+        return this.__flatTextCache;
     }
 
     invalidateThisCache() {
-        this.flatTextCache = null;
+        this.__flatTextCache = null;
 
         this.__attributeCache = null;
-        this.inheritableAttributeCache = null;
-        this.ancestorCache = null;
+        this.__inheritableAttributeCache = null;
+        this.__ancestorCache = null;
     }
 
     invalidateSubTree(path = []) {
@@ -841,24 +873,6 @@ class BNote extends AbstractBeccaEntity {
 
                 if (note) {
                     note.invalidateSubTree(path);
-                }
-            }
-        }
-    }
-
-    invalidateSubtreeFlatText() {
-        this.flatTextCache = null;
-
-        for (const childNote of this.children) {
-            childNote.invalidateSubtreeFlatText();
-        }
-
-        for (const targetRelation of this.targetRelations) {
-            if (targetRelation.name === 'template' || targetRelation.name === 'inherit') {
-                const note = targetRelation.note;
-
-                if (note) {
-                    note.invalidateSubtreeFlatText();
                 }
             }
         }
@@ -1054,28 +1068,28 @@ class BNote extends AbstractBeccaEntity {
 
     /** @returns {BNote[]} */
     getAncestors() {
-        if (!this.ancestorCache) {
+        if (!this.__ancestorCache) {
             const noteIds = new Set();
-            this.ancestorCache = [];
+            this.__ancestorCache = [];
 
             for (const parent of this.parents) {
                 if (noteIds.has(parent.noteId)) {
                     continue;
                 }
 
-                this.ancestorCache.push(parent);
+                this.__ancestorCache.push(parent);
                 noteIds.add(parent.noteId);
 
                 for (const ancestorNote of parent.getAncestors()) {
                     if (!noteIds.has(ancestorNote.noteId)) {
-                        this.ancestorCache.push(ancestorNote);
+                        this.__ancestorCache.push(ancestorNote);
                         noteIds.add(ancestorNote.noteId);
                     }
                 }
             }
         }
 
-        return this.ancestorCache;
+        return this.__ancestorCache;
     }
 
     /** @returns {boolean} */
@@ -1136,6 +1150,8 @@ class BNote extends AbstractBeccaEntity {
     }
 
     /**
+     * Gives all possible note paths leading to this note. Paths containing search note are ignored (could form cycles)
+     *
      * @returns {string[][]} - array of notePaths (each represented by array of noteIds constituting the particular note path)
      */
     getAllNotePaths() {
@@ -1143,16 +1159,71 @@ class BNote extends AbstractBeccaEntity {
             return [['root']];
         }
 
-        const notePaths = [];
+        const parentNotes = this.getParentNotes();
+        let notePaths = [];
 
-        for (const parentNote of this.getParentNotes()) {
-            for (const parentPath of parentNote.getAllNotePaths()) {
-                parentPath.push(this.noteId);
-                notePaths.push(parentPath);
-            }
+        if (parentNotes.length === 1) { // optimization for most common case
+            notePaths = parentNotes[0].getAllNotePaths();
+        } else {
+            notePaths = parentNotes.flatMap(parentNote => parentNote.getAllNotePaths());
+        }
+
+        for (const notePath of notePaths) {
+            notePath.push(this.noteId);
         }
 
         return notePaths;
+    }
+
+    /**
+     * @param {string} [hoistedNoteId='root']
+     * @return {Array<{isArchived: boolean, isInHoistedSubTree: boolean, notePath: Array<string>, isHidden: boolean}>}
+     */
+    getSortedNotePathRecords(hoistedNoteId = 'root') {
+        const isHoistedRoot = hoistedNoteId === 'root';
+
+        const notePaths = this.getAllNotePaths().map(path => ({
+            notePath: path,
+            isInHoistedSubTree: isHoistedRoot || path.includes(hoistedNoteId),
+            isArchived: path.some(noteId => this.becca.notes[noteId].isArchived),
+            isHidden: path.includes('_hidden')
+        }));
+
+        notePaths.sort((a, b) => {
+            if (a.isInHoistedSubTree !== b.isInHoistedSubTree) {
+                return a.isInHoistedSubTree ? -1 : 1;
+            } else if (a.isArchived !== b.isArchived) {
+                return a.isArchived ? 1 : -1;
+            } else if (a.isHidden !== b.isHidden) {
+                return a.isHidden ? 1 : -1;
+            } else {
+                return a.notePath.length - b.notePath.length;
+            }
+        });
+
+        return notePaths;
+    }
+
+    /**
+     * Returns note path considered to be the "best"
+     *
+     * @param {string} [hoistedNoteId='root']
+     * @return {string[]} array of noteIds constituting the particular note path
+     */
+    getBestNotePath(hoistedNoteId = 'root') {
+        return this.getSortedNotePathRecords(hoistedNoteId)[0]?.notePath;
+    }
+
+    /**
+     * Returns note path considered to be the "best"
+     *
+     * @param {string} [hoistedNoteId='root']
+     * @return {string} serialized note path (e.g. 'root/a1h315/js725h')
+     */
+    getBestNotePathString(hoistedNoteId = 'root') {
+        const notePath = this.getBestNotePath(hoistedNoteId);
+
+        return notePath?.join("/");
     }
 
     /**
@@ -1362,7 +1433,7 @@ class BNote extends AbstractBeccaEntity {
 
     /**
      * @param parentNoteId
-     * @returns {{success: boolean, message: string}}
+     * @returns {{success: boolean, message: string, branchId: string, notePath: string}}
      */
     cloneTo(parentNoteId) {
         const cloningService = require("../../services/cloning");
@@ -1405,7 +1476,7 @@ class BNote extends AbstractBeccaEntity {
         if (this.isProtected && !this.isDecrypted && protectedSessionService.isProtectedSessionAvailable()) {
             try {
                 this.title = protectedSessionService.decryptString(this.title);
-                this.flatTextCache = null;
+                this.__flatTextCache = null;
 
                 this.isDecrypted = true;
             }

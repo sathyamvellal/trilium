@@ -63,7 +63,9 @@ const ALLOWED_OPTIONS = new Set([
     'downloadImagesAutomatically',
     'minTocHeadings',
     'checkForUpdates',
-    'disableTray'
+    'disableTray',
+    'customSearchEngineName',
+    'customSearchEngineUrl',
 ]);
 
 function getOptions() {
@@ -76,7 +78,7 @@ function getOptions() {
         }
     }
 
-    resultMap['isPasswordSet'] = !!optionMap['passwordVerificationHash'] ? 'true' : 'false';
+    resultMap['isPasswordSet'] = optionMap['passwordVerificationHash'] ? 'true' : 'false';
 
     return resultMap;
 }
