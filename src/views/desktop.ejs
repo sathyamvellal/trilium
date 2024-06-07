@@ -21,9 +21,9 @@
 <script type="text/javascript">
     global = globalThis; /* fixes https://github.com/webpack/webpack/issues/10035 */
 
-    window.baseApiUrl = 'api/';
-    window.device = "desktop";
     window.glob = {
+        device: "desktop",
+        baseApiUrl: 'api/',
         activeDialog: null,
         maxEntityChangeIdAtLoad: <%= maxEntityChangeIdAtLoad %>,
         maxEntityChangeSyncIdAtLoad: <%= maxEntityChangeSyncIdAtLoad %>,
@@ -32,7 +32,6 @@
         isDev: <%= isDev %>,
         appCssNoteIds: <%- JSON.stringify(appCssNoteIds) %>,
         isMainWindow: <%= isMainWindow %>,
-        extraHoistedNoteId: '<%= extraHoistedNoteId %>',
         isProtectedSessionAvailable: <%= isProtectedSessionAvailable %>,
         triliumVersion: "<%= triliumVersion %>",
         assetPath: "<%= assetPath %>",

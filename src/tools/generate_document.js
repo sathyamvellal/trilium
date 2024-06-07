@@ -1,6 +1,6 @@
 /**
  * Usage: node src/tools/generate_document.js 1000
- * will create 1000 new notes and some clones into a current document.db
+ * will create 1000 new notes and some clones into the current document.db
  */
 
 require('../becca/entity_constructor');
@@ -82,7 +82,7 @@ async function start() {
             isInheritable: Math.random() > 0.1 // 10% are inheritable
         });
 
-        note.saveNoteRevision();
+        note.saveRevision();
 
         notes.push(note.noteId);
     }

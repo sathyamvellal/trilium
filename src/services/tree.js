@@ -4,30 +4,7 @@ const sql = require('./sql');
 const log = require('./log');
 const BBranch = require('../becca/entities/bbranch');
 const entityChangesService = require('./entity_changes');
-const protectedSessionService = require('./protected_session');
 const becca = require('../becca/becca');
-
-function getNotes(noteIds) {
-    // we return also deleted notes which have been specifically asked for
-    const notes = sql.getManyRows(`
-        SELECT 
-          noteId,
-          title,
-          isProtected,
-          type,
-          mime,
-          isDeleted
-        FROM notes
-        WHERE noteId IN (???)`, noteIds);
-
-    protectedSessionService.decryptNotes(notes);
-
-    notes.forEach(note => {
-        note.isProtected = !!note.isProtected
-    });
-
-    return notes;
-}
 
 function validateParentChild(parentNoteId, childNoteId, branchId = null) {
     if (['root', '_hidden', '_share', '_lbRoot', '_lbAvailableLaunchers', '_lbVisibleLaunchers'].includes(childNoteId)) {
@@ -39,7 +16,7 @@ function validateParentChild(parentNoteId, childNoteId, branchId = null) {
         return { branch: null, success: false, message: `Cannot move anything into 'none' parent.` };
     }
 
-    const existing = getExistingBranch(parentNoteId, childNoteId);
+    const existing = becca.getBranchFromChildAndParent(childNoteId, parentNoteId);
 
     if (existing && (branchId === null || existing.branchId !== branchId)) {
         const parentNote = becca.getNote(parentNoteId);
@@ -52,7 +29,7 @@ function validateParentChild(parentNoteId, childNoteId, branchId = null) {
         };
     }
 
-    if (!checkTreeCycle(parentNoteId, childNoteId)) {
+    if (wouldAddingBranchCreateCycle(parentNoteId, childNoteId)) {
         return {
             branch: null,
             success: false,
@@ -71,59 +48,22 @@ function validateParentChild(parentNoteId, childNoteId, branchId = null) {
     return { branch: null, success: true };
 }
 
-function getExistingBranch(parentNoteId, childNoteId) {
-    const branchId = sql.getValue(`
-        SELECT branchId 
-        FROM branches 
-        WHERE noteId = ? 
-          AND parentNoteId = ? 
-          AND isDeleted = 0`, [childNoteId, parentNoteId]);
-
-    return becca.getBranch(branchId);
-}
-
 /**
  * Tree cycle can be created when cloning or when moving existing clone. This method should detect both cases.
  */
-function checkTreeCycle(parentNoteId, childNoteId) {
-    const subtreeNoteIds = [];
+function wouldAddingBranchCreateCycle(parentNoteId, childNoteId) {
+    const childNote = becca.getNote(childNoteId);
+    const parentNote = becca.getNote(parentNoteId);
+
+    if (!childNote || !parentNote) {
+        return false;
+    }
 
     // we'll load the whole subtree - because the cycle can start in one of the notes in the subtree
-    loadSubtreeNoteIds(childNoteId, subtreeNoteIds);
+    const childSubtreeNoteIds = new Set(childNote.getSubtreeNoteIds());
+    const parentAncestorNoteIds = parentNote.getAncestorNoteIds();
 
-    function checkTreeCycleInner(parentNoteId) {
-        if (parentNoteId === 'root') {
-            return true;
-        }
-
-        if (subtreeNoteIds.includes(parentNoteId)) {
-            // while towards the root of the tree we encountered noteId which is already present in the subtree
-            // joining parentNoteId with childNoteId would then clearly create a cycle
-            return false;
-        }
-
-        const parentNoteIds = sql.getColumn("SELECT DISTINCT parentNoteId FROM branches WHERE noteId = ? AND isDeleted = 0", [parentNoteId]);
-
-        for (const pid of parentNoteIds) {
-            if (!checkTreeCycleInner(pid)) {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    return checkTreeCycleInner(parentNoteId);
-}
-
-function loadSubtreeNoteIds(parentNoteId, subtreeNoteIds) {
-    subtreeNoteIds.push(parentNoteId);
-
-    const children = sql.getColumn("SELECT noteId FROM branches WHERE parentNoteId = ? AND isDeleted = 0", [parentNoteId]);
-
-    for (const childNoteId of children) {
-        loadSubtreeNoteIds(childNoteId, subtreeNoteIds);
-    }
+    return parentAncestorNoteIds.some(parentAncestorNoteId => childSubtreeNoteIds.has(parentAncestorNoteId));
 }
 
 function sortNotes(parentNoteId, customSortBy = 'title', reverse = false, foldersFirst = false, sortNatural = false, sortLocale) {
@@ -147,28 +87,35 @@ function sortNotes(parentNoteId, customSortBy = 'title', reverse = false, folder
                 const bHasChildren = b.hasChildren();
 
                 if ((aHasChildren && !bHasChildren) || (!aHasChildren && bHasChildren)) {
-                    // exactly one note of the two is a directory so the sorting will be done based on this status
+                    // exactly one note of the two is a directory, so the sorting will be done based on this status
                     return aHasChildren ? -1 : 1;
                 }
             }
 
             function fetchValue(note, key) {
-                const rawValue = ['title', 'dateCreated', 'dateModified'].includes(key)
-                    ? note[key]
-                    : note.getLabelValue(key);
+                let rawValue;
+
+                if (key === 'title') {
+                    const branch = note.getParentBranches().find(branch => branch.parentNoteId === parentNoteId);
+                    const prefix = branch?.prefix;
+                    rawValue = prefix ? `${prefix} - ${note.title}` : note.title;
+                } else {
+                    rawValue = ['dateCreated', 'dateModified'].includes(key)
+                        ? note[key]
+                        : note.getLabelValue(key);
+                }
 
                 return normalize(rawValue);
             }
 
             function compare(a, b) {
-                if (!sortNatural){
+                if (!sortNatural) {
                     // alphabetical sort
                     return b === null || b === undefined || a < b ? -1 : 1;
                 } else {
                     // natural sort
                     return a.localeCompare(b, sortLocale, {numeric: true, sensitivity: 'base'});
                 }
-
             }
 
             const topAEl = fetchValue(a, 'top');
@@ -218,7 +165,7 @@ function sortNotes(parentNoteId, customSortBy = 'title', reverse = false, folder
         }
 
         if (someBranchUpdated) {
-            entityChangesService.addNoteReorderingEntityChange(parentNoteId);
+            entityChangesService.putNoteReorderingEntityChange(parentNoteId);
         }
     });
 }
@@ -237,10 +184,8 @@ function sortNotesIfNeeded(parentNoteId) {
     }
 
     const sortReversed = parentNote.getLabelValue('sortDirection')?.toLowerCase() === "desc";
-    const sortFoldersFirstLabel = parentNote.getLabel('sortFoldersFirst');
-    const sortFoldersFirst = sortFoldersFirstLabel && sortFoldersFirstLabel.value.toLowerCase() !== "false";
-    const sortNaturalLabel = parentNote.getLabel('sortNatural');
-    const sortNatural = sortNaturalLabel && sortNaturalLabel.value.toLowerCase() !== "false";
+    const sortFoldersFirst = parentNote.isLabelTruthy('sortFoldersFirst');
+    const sortNatural = parentNote.isLabelTruthy('sortNatural');
     const sortLocale = parentNote.getLabelValue('sortLocale');
 
     sortNotes(parentNoteId, sortedLabel.value, sortReversed, sortFoldersFirst, sortNatural, sortLocale);
@@ -252,8 +197,8 @@ function sortNotesIfNeeded(parentNoteId) {
 function setNoteToParent(noteId, prefix, parentNoteId) {
     const parentNote = becca.getNote(parentNoteId);
 
-    if (parentNote && parentNote.isDeleted) {
-        throw new Error(`Cannot move note to deleted parent note ${parentNoteId}`);
+    if (!parentNote) {
+        throw new Error(`Cannot move note to deleted parent note '${parentNoteId}'`);
     }
 
     // case where there might be more such branches is ignored. It's expected there should be just one
@@ -262,7 +207,7 @@ function setNoteToParent(noteId, prefix, parentNoteId) {
 
     if (branch) {
         if (!parentNoteId) {
-            log.info(`Removing note ${noteId} from parent ${parentNoteId}`);
+            log.info(`Removing note '${noteId}' from parent '${parentNoteId}'`);
 
             branch.markAsDeleted();
         }
@@ -277,7 +222,7 @@ function setNoteToParent(noteId, prefix, parentNoteId) {
         const note = becca.getNote(noteId);
 
         if (note.isDeleted) {
-            throw new Error(`Cannot create a branch for ${noteId} which is deleted.`);
+            throw new Error(`Cannot create a branch for '${noteId}' which is deleted.`);
         }
 
         const branchId = sql.getValue('SELECT branchId FROM branches WHERE isDeleted = 0 AND noteId = ? AND parentNoteId = ?', [noteId, parentNoteId]);
@@ -298,7 +243,6 @@ function setNoteToParent(noteId, prefix, parentNoteId) {
 }
 
 module.exports = {
-    getNotes,
     validateParentChild,
     sortNotes,
     sortNotesIfNeeded,

@@ -2,9 +2,9 @@
 
 const utils = require('../services/utils');
 const optionService = require('../services/options');
-const myScryptService = require('../services/my_scrypt');
+const myScryptService = require('../services/encryption/my_scrypt');
 const log = require('../services/log');
-const passwordService = require("../services/password");
+const passwordService = require("../services/encryption/password");
 const assetPath = require("../services/asset_path");
 const appPath = require("../services/app_path");
 const ValidationError = require("../errors/validation_error");
@@ -59,7 +59,7 @@ function login(req, res) {
     const guessedPassword = req.body.password;
 
     if (verifyPassword(guessedPassword)) {
-        const rememberMe = req.body.remember_me;
+        const rememberMe = req.body.rememberMe;
 
         req.session.regenerate(() => {
             if (rememberMe) {

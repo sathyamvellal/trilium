@@ -12,7 +12,7 @@ function runAttachedRelations(note, relationName, originEntity) {
         return;
     }
 
-    // same script note can get here with multiple ways, but execute only once
+    // the same script note can get here with multiple ways, but execute only once
     const notesToRun = new Set(
         note.getRelations(relationName)
             .map(relation => relation.getTargetNote())
@@ -59,9 +59,17 @@ eventService.subscribe([ eventService.ENTITY_CHANGED, eventService.ENTITY_DELETE
 });
 
 eventService.subscribe(eventService.ENTITY_CHANGED, ({entityName, entity}) => {
-    if (entityName === 'note_contents') {
-        runAttachedRelations(entity, 'runOnNoteContentChange', entity);
+    if (entityName === 'branches') {
+        const parentNote = becca.getNote(entity.parentNoteId);
+
+        if (parentNote?.hasLabel("sorted")) {
+            treeService.sortNotesIfNeeded(parentNote.noteId);
+        }
     }
+});
+
+eventService.subscribe(eventService.NOTE_CONTENT_CHANGE, ({entity}) => {
+    runAttachedRelations(entity, 'runOnNoteContentChange', entity);
 });
 
 eventService.subscribe(eventService.ENTITY_CREATED, ({ entityName, entity }) => {
@@ -82,7 +90,7 @@ eventService.subscribe(eventService.ENTITY_CREATED, ({ entityName, entity }) => 
             if (["text", "code"].includes(note.type)
                 // if the note has already content we're not going to overwrite it with template's one
                 && (!content || content.trim().length === 0)
-                && templateNote.isStringNote()) {
+                && templateNote.hasStringContent()) {
 
                 const templateNoteContent = templateNote.getContent();
 
@@ -195,7 +203,7 @@ eventService.subscribe(eventService.ENTITY_CHANGED, ({ entityName, entity }) => 
 
 eventService.subscribe(eventService.ENTITY_DELETED, ({ entityName, entity }) => {
     processInverseRelations(entityName, entity, (definition, note, targetNote) => {
-        // if one inverse attribute is deleted then the other should be deleted as well
+        // if one inverse attribute is deleted, then the other should be deleted as well
         const relations = targetNote.getOwnedRelations(definition.inverseRelation);
 
         for (const relation of relations) {
@@ -212,11 +220,8 @@ eventService.subscribe(eventService.ENTITY_DELETED, ({ entityName, entity }) => 
     if (entityName === 'notes' && entity.noteId.startsWith("_")) {
         // "named" note has been deleted, we will probably need to rebuild the hidden subtree
         // scheduling so that bulk deletes won't trigger so many checks
-        oneTimeTimer.scheduleExecution('hidden-subtree-check', 1000, () => {
-            console.log("Checking hidden subtree");
-
-            hiddenSubtreeService.checkHiddenSubtree();
-        });
+        oneTimeTimer.scheduleExecution('hidden-subtree-check', 1000,
+            () => hiddenSubtreeService.checkHiddenSubtree());
     }
 });
 

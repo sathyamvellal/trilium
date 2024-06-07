@@ -78,7 +78,7 @@ export default class NoteMapWidget extends NoteContextAwareWidget {
             .width($parent.width());
     }
 
-    async refreshWithNote() {
+    async refreshWithNote(note) {
         this.$widget.show();
 
         this.css = {
@@ -113,7 +113,7 @@ export default class NoteMapWidget extends NoteContextAwareWidget {
             .linkWidth(1)
             .linkColor(() => this.css.mutedTextColor)
             .onNodeClick(node => appContext.tabManager.getActiveContext().setNote(node.id))
-            .onNodeRightClick((node, e) => linkContextMenuService.openContextMenu(node.id, null, e));
+            .onNodeRightClick((node, e) => linkContextMenuService.openContextMenu(node.id, e));
 
         if (this.mapType === 'link') {
             this.graph
@@ -166,7 +166,7 @@ export default class NoteMapWidget extends NoteContextAwareWidget {
 
     generateColorFromString(str) {
         if (this.themeStyle === "dark") {
-            str = `0${str}`; // magic lightening modifier
+            str = `0${str}`; // magic lightning modifier
         }
 
         let hash = 0;
@@ -429,7 +429,7 @@ export default class NoteMapWidget extends NoteContextAwareWidget {
     }
 
     entitiesReloadedEvent({loadResults}) {
-        if (loadResults.getAttributes(this.componentId).find(
+        if (loadResults.getAttributeRows(this.componentId).find(
             attr =>
                 attr.type === 'label'
                 && ['mapType', 'mapRootNoteId'].includes(attr.name)

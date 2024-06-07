@@ -24,7 +24,7 @@ const IGNORED_ATTR_NAMES = [
     "keyboardshortcut",
     "noteinfowidgetdisabled",
     "linkmapwidgetdisabled",
-    "noterevisionswidgetdisabled",
+    "revisionswidgetdisabled",
     "whatlinksherewidgetdisabled",
     "similarnoteswidgetdisabled",
     "disableinclusion",
@@ -132,9 +132,9 @@ function buildRewardMap(note) {
             }
         }
 
-        // title is the top with weight 1 so smaller headings will have lower weight
+        // the title is the top with weight 1 so smaller headings will have lower weight
 
-        // technically H1 is not supported but for the case it's present let's weigh it just as H2
+        // technically H1 is not supported, but for the case it's present let's weigh it just as H2
         addHeadingsToRewardMap("h1", 0.9);
         addHeadingsToRewardMap("h2", 0.9);
         addHeadingsToRewardMap("h3", 0.8);
@@ -260,7 +260,7 @@ async function findSimilarNotes(noteId) {
 
         let counter = 0;
 
-        // when the title is very long then weight of each individual word should be lowered
+        // when the title is very long, then weight of each individual word should be lowered,
         // also pretty important in e.g. long URLs in label values
         const lengthPenalization = 1 / Math.pow(text.length, 0.3);
 
@@ -364,10 +364,10 @@ async function findSimilarNotes(noteId) {
         }
 
         /**
-         * We want to improve standing of notes which have been created in similar time to each other since
+         * We want to improve the standing of notes which have been created in similar time to each other since
          * there's a good chance they are related.
          *
-         * But there's an exception - if they were created really close to each other (withing few seconds) then
+         * But there's an exception - if they were created really close to each other (within few seconds) then
          * they are probably part of the import and not created by hand - these OTOH should not benefit.
          */
         const {utcDateCreated} = candidateNote;
@@ -386,7 +386,7 @@ async function findSimilarNotes(noteId) {
                     console.log("Adding reward for same day of creation");
                 }
 
-                // smaller bonus when outside of the window but within same date
+                // smaller bonus when outside of the window but within the same date
                 score += 0.5;
             }
         }
@@ -447,7 +447,7 @@ async function findSimilarNotes(noteId) {
 }
 
 /**
- * Point of this is to break up long-running sync process to avoid blocking
+ * The point of this is to break up the long-running sync process to avoid blocking
  * see https://snyk.io/blog/nodejs-how-even-quick-async-functions-can-block-the-event-loop-starve-io/
  */
 function setImmediatePromise() {

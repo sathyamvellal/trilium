@@ -13,7 +13,7 @@ const env = require('./env');
 if (env.isDev()) {
     const chokidar = require('chokidar');
     const debounce = require('debounce');
-    const debouncedReloadFrontend = debounce(reloadFrontend, 200);
+    const debouncedReloadFrontend = debounce(() => reloadFrontend("source code change"), 200);
     chokidar
         .watch('src/public')
         .on('add', debouncedReloadFrontend)
@@ -103,8 +103,8 @@ function fillInAdditionalProperties(entityChange) {
     }
 
     // fill in some extra data needed by the frontend
-    // first try to use becca which works for non-deleted entities
-    // only when that fails try to load from database
+    // first try to use becca, which works for non-deleted entities
+    // only when that fails, try to load from the database
     if (entityChange.entityName === 'attributes') {
         entityChange.entity = becca.getAttribute(entityChange.entityId);
 
@@ -127,10 +127,10 @@ function fillInAdditionalProperties(entityChange) {
                 entityChange.entity.title = protectedSessionService.decryptString(entityChange.entity.title);
             }
         }
-    } else if (entityChange.entityName === 'note_revisions') {
+    } else if (entityChange.entityName === 'revisions') {
         entityChange.noteId = sql.getValue(`SELECT noteId
-                                          FROM note_revisions
-                                          WHERE noteRevisionId = ?`, [entityChange.entityId]);
+                                          FROM revisions
+                                          WHERE revisionId = ?`, [entityChange.entityId]);
     } else if (entityChange.entityName === 'note_reordering') {
         entityChange.positions = {};
 
@@ -141,13 +141,19 @@ function fillInAdditionalProperties(entityChange) {
                 entityChange.positions[childBranch.branchId] = childBranch.notePosition;
             }
         }
-    }
-    else if (entityChange.entityName === 'options') {
+    } else if (entityChange.entityName === 'options') {
         entityChange.entity = becca.getOption(entityChange.entityId);
 
         if (!entityChange.entity) {
             entityChange.entity = sql.getRow(`SELECT * FROM options WHERE name = ?`, [entityChange.entityId]);
         }
+    } else if (entityChange.entityName === 'blobs') {
+        entityChange.noteIds = sql.getColumn("SELECT noteId FROM notes WHERE blobId = ? AND isDeleted = 0", [entityChange.entityId]);
+    } else if (entityChange.entityName === 'attachments') {
+        entityChange.entity = sql.getRow(`SELECT attachments.*, LENGTH(blobs.content) AS contentLength
+                                                FROM attachments
+                                                JOIN blobs USING (blobId)
+                                                WHERE attachmentId = ?`, [entityChange.entityId]);
     }
 
     if (entityChange.entity instanceof AbstractBeccaEntity) {
@@ -158,13 +164,13 @@ function fillInAdditionalProperties(entityChange) {
 // entities with higher number can reference the entities with lower number
 const ORDERING = {
     "etapi_tokens": 0,
-    "attributes": 1,
-    "branches": 1,
-    "note_contents": 1,
-    "note_reordering": 1,
-    "note_revision_contents": 2,
-    "note_revisions": 1,
-    "notes": 0,
+    "attributes": 2,
+    "branches": 2,
+    "blobs": 0,
+    "note_reordering": 2,
+    "revisions": 2,
+    "attachments": 3,
+    "notes": 1,
     "options": 0
 };
 
@@ -179,7 +185,7 @@ function sendPing(client, entityChangeIds = []) {
 
     // sort entity changes since froca expects "referential order", i.e. referenced entities should already exist
     // in froca.
-    // Froca needs this since it is incomplete copy, it can't create "skeletons" like becca.
+    // Froca needs this since it is an incomplete copy, it can't create "skeletons" like becca.
     entityChanges.sort((a, b) => ORDERING[a.entityName] - ORDERING[b.entityName]);
 
     for (const entityChange of entityChanges) {
@@ -224,8 +230,8 @@ function syncFailed() {
     sendMessageToAllClients({ type: 'sync-failed', lastSyncedPush });
 }
 
-function reloadFrontend() {
-    sendMessageToAllClients({ type: 'reload-frontend' });
+function reloadFrontend(reason) {
+    sendMessageToAllClients({ type: 'reload-frontend', reason });
 }
 
 function setLastSyncedPush(entityChangeId) {

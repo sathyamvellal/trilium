@@ -2,14 +2,14 @@
  * Table of contents widget
  * (c) Antonio Tejada 2022
  *
- * By design there's no support for nonsensical or malformed constructs:
+ * By design, there's no support for nonsensical or malformed constructs:
  * - headings inside elements (e.g. Trilium allows headings inside tables, but
  *   not inside lists)
  * - nested headings when using raw HTML <H2><H3></H3></H2>
  * - malformed headings when using raw HTML <H2></H3></H2><H3>
  * - etc.
  *
- * In those cases the generated TOC may be incorrect or the navigation may lead
+ * In those cases, the generated TOC may be incorrect, or the navigation may lead
  * to the wrong heading (although what "right" means in those cases is not
  * clear), but it won't crash.
  */
@@ -38,6 +38,10 @@ const TPL = `<div class="toc-widget">
         
         .toc li {
             cursor: pointer;
+            text-align: justify;
+            text-justify: distribute;
+            word-wrap: break-word;
+            hyphens: auto;
         }
         
         .toc li:hover {
@@ -47,7 +51,7 @@ const TPL = `<div class="toc-widget">
         .close-toc {
             position: absolute;
             top: 2px;
-            right: 2px;
+            right: 0px;
         }
     </style>
 
@@ -80,6 +84,12 @@ export default class TocWidget extends RightPanelWidget {
     }
 
     async refreshWithNote(note) {
+        /*The reason for adding tocPreviousVisible is to record whether the previous state of the toc is hidden or displayed,
+        * and then let it be displayed/hidden at the initial time. If there is no such value,
+        * when the right panel needs to display highlighttext but not toc, every time the note content is changed,
+        * toc will appear and then close immediately, because getToc(html) function will consume time*/
+        this.toggleInt(!!this.noteContext.viewScope.tocPreviousVisible);
+
         const tocLabel = note.getLabel('toc');
 
         if (tocLabel?.value === 'hide') {
@@ -91,15 +101,18 @@ export default class TocWidget extends RightPanelWidget {
         let $toc = "", headingCount = 0;
         // Check for type text unconditionally in case alwaysShowWidget is set
         if (this.note.type === 'text') {
-            const { content } = await note.getNoteComplement();
+            const { content } = await note.getBlob();
             ({$toc, headingCount} = await this.getToc(content));
         }
 
         this.$toc.html($toc);
-        this.toggleInt(
-            ["", "show"].includes(tocLabel?.value)
-            || headingCount >= options.getInt('minTocHeadings')
-        );
+        if (["", "show"].includes(tocLabel?.value) || headingCount >= options.getInt('minTocHeadings')){
+            this.toggleInt(true);
+            this.noteContext.viewScope.tocPreviousVisible=true;
+        }else{
+            this.toggleInt(false);
+            this.noteContext.viewScope.tocPreviousVisible=false;
+        }
 
         this.triggerCommand("reEvaluateRightPaneVisibility");
     }
@@ -107,7 +120,7 @@ export default class TocWidget extends RightPanelWidget {
     /**
      * Builds a jquery table of contents.
      *
-     * @param {String} html Note's html content
+     * @param {string} html Note's html content
      * @returns {$toc: jQuery, headingCount: integer} ordered list table of headings, nested by heading level
      *         with an onclick event that will cause the document to scroll to
      *         the desired position.
@@ -174,7 +187,7 @@ export default class TocWidget extends RightPanelWidget {
 
         if (isReadOnly) {
             const $container = await this.noteContext.getContentElement();
-            const headingElement = $container.find(":header")[headingIndex];
+            const headingElement = $container.find(":header:not(section.include-note :header)")[headingIndex];
 
             if (headingElement != null) {
                 headingElement.scrollIntoView({ behavior: "smooth" });
@@ -193,7 +206,7 @@ export default class TocWidget extends RightPanelWidget {
             // navigate (note that the TOC rendering and other TOC
             // entries' navigation could be wrong too)
             if (headingNode != null) {
-                $(textEditor.editing.view.domRoots.values().next().value).find(':header')[headingIndex].scrollIntoView({
+                $(textEditor.editing.view.domRoots.values().next().value).find(':header:not(section.include-note :header)')[headingIndex].scrollIntoView({
                     behavior: 'smooth'
                 });
             }
@@ -209,7 +222,7 @@ export default class TocWidget extends RightPanelWidget {
     async entitiesReloadedEvent({loadResults}) {
         if (loadResults.isNoteContentReloaded(this.noteId)) {
             await this.refresh();
-        } else if (loadResults.getAttributes().find(attr => attr.type === 'label'
+        } else if (loadResults.getAttributeRows().find(attr => attr.type === 'label'
             && (attr.name.toLowerCase().includes('readonly') || attr.name === 'toc')
             && attributeService.isAffecting(attr, this.note))) {
 
@@ -254,7 +267,7 @@ class CloseTocButton extends OnClickButtonWidget {
 
         this.icon("bx-x")
             .title("Close TOC")
-            .titlePlacement("bottom")
+            .titlePlacement("left")
             .onClick((widget, e) => {
                 e.stopPropagation();
 

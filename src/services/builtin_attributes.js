@@ -22,7 +22,7 @@ module.exports = [
     { type: 'label', name: 'widget', isDangerous: true },
     { type: 'label', name: 'noteInfoWidgetDisabled' },
     { type: 'label', name: 'linkMapWidgetDisabled' },
-    { type: 'label', name: 'noteRevisionsWidgetDisabled' },
+    { type: 'label', name: 'revisionsWidgetDisabled' },
     { type: 'label', name: 'whatLinksHereWidgetDisabled' },
     { type: 'label', name: 'similarNotesWidgetDisabled' },
     { type: 'label', name: 'workspace' },
@@ -65,6 +65,8 @@ module.exports = [
     { type: 'label', name: 'executeButton'},
     { type: 'label', name: 'executeDescription'},
     { type: 'label', name: 'newNotesOnTop'},
+    { type: 'label', name: 'clipperInbox'},
+    { type: 'label', name: 'webViewSrc', isDangerous: true },
 
     // relation names
     { type: 'relation', name: 'internalLink' },

@@ -10,6 +10,8 @@ const CODE_MIRROR = {
         "libraries/codemirror/addon/lint/lint.js",
         "libraries/codemirror/addon/lint/eslint.js",
         "libraries/codemirror/addon/mode/loadmode.js",
+        "libraries/codemirror/addon/mode/multiplex.js",
+        "libraries/codemirror/addon/mode/overlay.js",
         "libraries/codemirror/addon/mode/simple.js",
         "libraries/codemirror/addon/search/match-highlighter.js",
         "libraries/codemirror/mode/meta.js",
@@ -22,8 +24,6 @@ const CODE_MIRROR = {
 };
 
 const ESLINT = {js: ["libraries/eslint.js"]};
-
-const COMMONMARK = {js: ["libraries/commonmark.min.js"]};
 
 const RELATION_MAP = {
     js: [
@@ -119,7 +119,6 @@ export default {
     CKEDITOR,
     CODE_MIRROR,
     ESLINT,
-    COMMONMARK,
     RELATION_MAP,
     PRINT_THIS,
     CALENDAR_WIDGET,

@@ -13,7 +13,6 @@ function register(router) {
     });
 
     const ALLOWED_PROPERTIES_FOR_CREATE_BRANCH = {
-        'branchId': [v.mandatory, v.notNull, v.isValidEntityId],
         'noteId': [v.mandatory, v.notNull, v.isNoteId],
         'parentNoteId': [v.mandatory, v.notNull, v.isNoteId],
         'notePosition': [v.notNull, v.isInteger],
@@ -64,7 +63,7 @@ function register(router) {
     eu.route(router, 'delete' ,'/etapi/branches/:branchId', (req, res, next) => {
         const branch = becca.getBranch(req.params.branchId);
 
-        if (!branch || branch.isDeleted) {
+        if (!branch) {
             return res.sendStatus(204);
         }
 
@@ -76,7 +75,7 @@ function register(router) {
     eu.route(router, 'post' ,'/etapi/refresh-note-ordering/:parentNoteId', (req, res, next) => {
         eu.getAndCheckNote(req.params.parentNoteId);
 
-        entityChangesService.addNoteReorderingEntityChange(req.params.parentNoteId, "etapi");
+        entityChangesService.putNoteReorderingEntityChange(req.params.parentNoteId, "etapi");
 
         res.sendStatus(204);
     });

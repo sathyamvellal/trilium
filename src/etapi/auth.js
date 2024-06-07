@@ -1,6 +1,6 @@
 const becca = require("../becca/becca");
 const eu = require("./etapi_utils");
-const passwordEncryptionService = require("../services/password_encryption");
+const passwordEncryptionService = require("../services/encryption/password_encryption");
 const etapiTokenService = require("../services/etapi_tokens");
 
 function register(router, loginMiddleware) {
@@ -29,7 +29,7 @@ function register(router, loginMiddleware) {
 
         if (!etapiToken) {
             // shouldn't happen since this already passed auth validation
-            throw new Error(`Cannot find the token ${parsed.etapiTokenId}.`);
+            throw new Error(`Cannot find the token '${parsed.etapiTokenId}'.`);
         }
 
         etapiToken.markAsDeletedSimple();

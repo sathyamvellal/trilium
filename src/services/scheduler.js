@@ -7,6 +7,10 @@ const attributeService = require("../services/attributes");
 const protectedSessionService = require("../services/protected_session");
 const hiddenSubtreeService = require("./hidden_subtree");
 
+/**
+ * @param {BNote} note
+ * @return {int[]}
+ */
 function getRunAtHours(note) {
     try {
         return note.getLabelValues('runAtHour').map(hour => parseInt(hour));
@@ -46,6 +50,8 @@ sqlInit.dbReady.then(() => {
         setInterval(cls.wrap(() => runNotesWithLabel('hourly')), 3600 * 1000);
 
         setInterval(cls.wrap(() => runNotesWithLabel('daily')), 24 * 3600 * 1000);
+
+        setInterval(cls.wrap(() => hiddenSubtreeService.checkHiddenSubtree()), 7 * 3600 * 1000);
     }
 
     setInterval(() => protectedSessionService.checkProtectedSessionExpiration(), 30000);

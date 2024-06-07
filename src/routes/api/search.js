@@ -7,17 +7,12 @@ const bulkActionService = require("../../services/bulk_actions");
 const cls = require("../../services/cls");
 const {formatAttrForSearch} = require("../../services/attribute_formatter");
 const ValidationError = require("../../errors/validation_error");
-const NotFoundError = require("../../errors/not_found_error");
 
 function searchFromNote(req) {
-    const note = becca.getNote(req.params.noteId);
+    const note = becca.getNoteOrThrow(req.params.noteId);
 
     if (!note) {
-        throw new NotFoundError(`Note '${req.params.noteId}' has not been found.`);
-    }
-
-    if (note.isDeleted) {
-        // this can be triggered from recent changes, and it's harmless to return empty list rather than fail
+        // this can be triggered from recent changes, and it's harmless to return an empty list rather than fail
         return [];
     }
 
@@ -29,14 +24,10 @@ function searchFromNote(req) {
 }
 
 function searchAndExecute(req) {
-    const note = becca.getNote(req.params.noteId);
+    const note = becca.getNoteOrThrow(req.params.noteId);
 
     if (!note) {
-        throw new NotFoundError(`Note '${req.params.noteId}' has not been found.`);
-    }
-
-    if (note.isDeleted) {
-        // this can be triggered from recent changes, and it's harmless to return empty list rather than fail
+        // this can be triggered from recent changes, and it's harmless to return an empty list rather than fail
         return [];
     }
 

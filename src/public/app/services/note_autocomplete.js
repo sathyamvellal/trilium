@@ -114,8 +114,7 @@ function initNoteAutocomplete($el, options) {
             .prop("title", "Show recent notes");
 
     const $goToSelectedNoteButton = $("<a>")
-        .addClass("input-group-text go-to-selected-note-button bx bx-arrow-to-right")
-        .attr("data-action", "note");
+        .addClass("input-group-text go-to-selected-note-button bx bx-arrow-to-right");
 
     const $sideButtons = $("<div>")
         .addClass("input-group-append")
@@ -134,7 +133,7 @@ function initNoteAutocomplete($el, options) {
         showRecentNotes($el);
 
         // this will cause the click not give focus to the "show recent notes" button
-        // this is important because otherwise input will lose focus immediatelly and not show the results
+        // this is important because otherwise input will lose focus immediately and not show the results
         return false;
     });
 
@@ -143,7 +142,7 @@ function initNoteAutocomplete($el, options) {
         hint: false,
         autoselect: true,
         // openOnFocus has to be false, otherwise re-focus (after return from note type chooser dialog) forces
-        // re-querying of the autocomplete source which then changes currently selected suggestion
+        // re-querying of the autocomplete source which then changes the currently selected suggestion
         openOnFocus: false,
         minLength: 0,
         tabAutocomplete: false
@@ -248,7 +247,7 @@ function init() {
             .closest(".input-group")
             .find(".go-to-selected-note-button")
             .toggleClass("disabled", !notePath.trim())
-            .attr(SELECTED_NOTE_PATH_KEY, notePath); // we also set attr here so tooltip can be displayed
+            .attr("href", `#${notePath}`); // we also set href here so tooltip can be displayed
     };
 
     $.fn.getSelectedExternalLink = function () {
@@ -260,12 +259,12 @@ function init() {
     };
 
     $.fn.setSelectedExternalLink = function (externalLink) {
-        $(this).attr(SELECTED_EXTERNAL_LINK_KEY, externalLink);
-
-        $(this)
-            .closest(".input-group")
-            .find(".go-to-selected-note-button")
-            .toggleClass("disabled", true);
+        if (externalLink) {
+            $(this)
+                .closest(".input-group")
+                .find(".go-to-selected-note-button")
+                .toggleClass("disabled", true);
+        }
     }
 
     $.fn.setNote = async function (noteId) {

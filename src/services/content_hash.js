@@ -3,14 +3,19 @@
 const sql = require('./sql');
 const utils = require('./utils');
 const log = require('./log');
+const eraseService = require("./erase");
 
 function getEntityHashes() {
+    // blob erasure is not synced, we should check before each sync if there's some blob to erase
+    eraseService.eraseUnusedBlobs();
+
     const startTime = new Date();
 
     const hashRows = sql.getRawRows(`
         SELECT entityName,
                entityId,
-               hash
+               hash,
+               isErased
         FROM entity_changes 
         WHERE isSynced = 1
           AND entityName != 'note_reordering'`);
@@ -21,12 +26,13 @@ function getEntityHashes() {
 
     const hashMap = {};
 
-    for (const [entityName, entityId, hash] of hashRows) {
+    for (const [entityName, entityId, hash, isErased] of hashRows) {
         const entityHashMap = hashMap[entityName] = hashMap[entityName] || {};
 
         const sector = entityId[0];
 
-        entityHashMap[sector] = (entityHashMap[sector] || "") + hash
+        // if the entity is erased, its hash is not updated, so it has to be added extra
+        entityHashMap[sector] = (entityHashMap[sector] || "") + hash + isErased;
     }
 
     for (const entityHashMap of Object.values(hashMap)) {

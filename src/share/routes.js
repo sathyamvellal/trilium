@@ -9,25 +9,32 @@ const contentRenderer = require("./content_renderer");
 const assetPath = require("../services/asset_path");
 const appPath = require("../services/app_path");
 
+/**
+ * @param {SNote} note
+ * @return {{note: SNote, branch: SBranch}|{}}
+ */
 function getSharedSubTreeRoot(note) {
     if (note.noteId === shareRoot.SHARE_ROOT_NOTE_ID) {
         // share root itself is not shared
-        return null;
+        return {};
     }
 
     // every path leads to share root, but which one to choose?
-    // for sake of simplicity URLs are not note paths
-    const parentNote = note.getParentNotes()[0];
+    // for the sake of simplicity, URLs are not note paths
+    const parentBranch = note.getParentBranches()[0];
 
-    if (parentNote.noteId === shareRoot.SHARE_ROOT_NOTE_ID) {
-        return note;
+    if (parentBranch.parentNoteId === shareRoot.SHARE_ROOT_NOTE_ID) {
+        return {
+            note,
+            branch: parentBranch
+        };
     }
 
-    return getSharedSubTreeRoot(parentNote);
+    return getSharedSubTreeRoot(parentBranch.getParentNote());
 }
 
 function addNoIndexHeader(note, res) {
-    if (note.hasLabel('shareDisallowRobotIndexing')) {
+    if (note.isLabelTruthy('shareDisallowRobotIndexing')) {
         res.setHeader('X-Robots-Tag', 'noindex');
     }
 }
@@ -37,12 +44,30 @@ function requestCredentials(res) {
         .sendStatus(401);
 }
 
+/** @returns {SAttachment|boolean} */
+function checkAttachmentAccess(attachmentId, req, res) {
+    const attachment = shaca.getAttachment(attachmentId);
+
+    if (!attachment) {
+        res.status(404)
+            .json({ message: `Attachment '${attachmentId}' not found.` });
+
+        return false;
+    }
+
+    const note = checkNoteAccess(attachment.ownerId, req, res);
+
+    // truthy note means the user has access, and we can return the attachment
+    return note ? attachment : false;
+}
+
+/** @returns {SNote|boolean} */
 function checkNoteAccess(noteId, req, res) {
     const note = shaca.getNote(noteId);
 
     if (!note) {
         res.status(404)
-            .json({ message: `Note '${noteId}' not found` });
+            .json({ message: `Note '${noteId}' not found.` });
 
         return false;
     }
@@ -80,6 +105,27 @@ function checkNoteAccess(noteId, req, res) {
     return false;
 }
 
+function renderImageAttachment(image, res, attachmentName) {
+    let svgString = '<svg/>'
+    const attachment = image.getAttachmentByTitle(attachmentName);
+
+    if (attachment) {
+        svgString = attachment.getContent();
+    } else {
+        // backwards compatibility, before attachments, the SVG was stored in the main note content as a separate key
+        const contentSvg = image.getJsonContentSafely()?.svg;
+
+        if (contentSvg) {
+            svgString = contentSvg;
+        }
+    }
+
+    const svg = svgString
+    res.set('Content-Type', "image/svg+xml");
+    res.set("Cache-Control", "no-cache, no-store, must-revalidate");
+    res.send(svg);
+}
+
 function register(router) {
     function renderNote(note, req, res) {
         if (!note) {
@@ -95,7 +141,7 @@ function register(router) {
 
         addNoIndexHeader(note, res);
 
-        if (note.hasLabel('shareRaw')) {
+        if (note.isLabelTruthy('shareRaw')) {
             res.setHeader('Content-Type', note.mime)
                 .send(note.getContent());
 
@@ -116,8 +162,6 @@ function register(router) {
             appPath
         });
     }
-
-    router.use('/share/canvas_share.js', express.static(path.join(__dirname, 'canvas_share.js')));
 
     router.get('/share/', (req, res, next) => {
         if (req.path.substr(-1) !== '/') {
@@ -150,7 +194,7 @@ function register(router) {
 
         addNoIndexHeader(note, res);
 
-        res.json(note.getPojoWithAttributes());
+        res.json(note.getPojo());
     });
 
     router.get('/share/api/notes/:noteId/download', (req, res, next) => {
@@ -176,7 +220,7 @@ function register(router) {
         res.send(note.getContent());
     });
 
-    // :filename is not used by trilium, but instead used for "save as" to assign a human readable filename
+    // :filename is not used by trilium, but instead used for "save as" to assign a human-readable filename
     router.get('/share/api/images/:noteId/:filename', (req, res, next) => {
         shacaLoader.ensureLoad();
 
@@ -186,33 +230,62 @@ function register(router) {
             return;
         }
 
-        if (!["image", "canvas"].includes(image.type)) {
-            return res.status(400)
-                .json({ message: "Requested note is not a shareable image" });
-        } else if (image.type === "canvas") {
-            /**
-             * special "image" type. the canvas is actually type application/json
-             * to avoid bitrot and enable usage as referenced image the svg is included.
-             */
-            const content = image.getContent();
-            try {
-                const data = JSON.parse(content);
-
-                const svg = data.svg || '<svg />';
-                addNoIndexHeader(image, res);
-                res.set('Content-Type', "image/svg+xml");
-                res.set("Cache-Control", "no-cache, no-store, must-revalidate");
-                res.send(svg);
-            } catch (err) {
-                res.status(500)
-                    .json({ message: "There was an error parsing excalidraw to svg." });
-            }
-        } else {
+        if (image.type === 'image') {
             // normal image
             res.set('Content-Type', image.mime);
             addNoIndexHeader(image, res);
             res.send(image.getContent());
+        } else if (image.type === "canvas") {
+            renderImageAttachment(image, res, 'canvas-export.svg');
+        } else if (image.type === 'mermaid') {
+            renderImageAttachment(image, res, 'mermaid-export.svg');
+        } else {
+            return res.status(400)
+                .json({ message: "Requested note is not a shareable image" });
         }
+    });
+
+    // :filename is not used by trilium, but instead used for "save as" to assign a human-readable filename
+    router.get('/share/api/attachments/:attachmentId/image/:filename', (req, res, next) => {
+        shacaLoader.ensureLoad();
+
+        let attachment;
+
+        if (!(attachment = checkAttachmentAccess(req.params.attachmentId, req, res))) {
+            return;
+        }
+
+        if (attachment.role === "image") {
+            res.set('Content-Type', attachment.mime);
+            addNoIndexHeader(attachment.note, res);
+            res.send(attachment.getContent());
+        } else {
+            return res.status(400)
+                .json({ message: "Requested attachment is not a shareable image" });
+        }
+    });
+
+    router.get('/share/api/attachments/:attachmentId/download', (req, res, next) => {
+        shacaLoader.ensureLoad();
+
+        let attachment;
+
+        if (!(attachment = checkAttachmentAccess(req.params.attachmentId, req, res))) {
+            return;
+        }
+
+        addNoIndexHeader(attachment.note, res);
+
+        const utils = require("../services/utils");
+
+        const filename = utils.formatDownloadTitle(attachment.title, null, attachment.mime);
+
+        res.setHeader('Content-Disposition', utils.getContentDisposition(filename));
+
+        res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+        res.setHeader('Content-Type', attachment.mime);
+
+        res.send(attachment.getContent());
     });
 
     // used for PDF viewing

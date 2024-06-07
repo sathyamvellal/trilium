@@ -19,6 +19,7 @@ const SpacedUpdate = require("./spaced_update");
 const specialNotesService = require("./special_notes");
 const branchService = require("./branches");
 const exportService = require("./export/zip");
+const syncMutex = require("./sync_mutex.js");
 
 /**
  * <p>This is the main backend API interface for scripts. All the properties and methods are published in the "api" object
@@ -27,11 +28,11 @@ const exportService = require("./export/zip");
  * @constructor
  */
 function BackendScriptApi(currentNote, apiParams) {
-    /** @property {BNote} note where script started executing */
+    /** @property {BNote} note where the script started executing */
     this.startNote = apiParams.startNote;
-    /** @property {BNote} note where script is currently executing. Don't mix this up with concept of active note */
+    /** @property {BNote} note where the script is currently executing. Don't mix this up with the concept of active note */
     this.currentNote = currentNote;
-    /** @property {AbstractBeccaEntity} entity whose event triggered this executions */
+    /** @property {AbstractBeccaEntity} entity whose event triggered this execution */
     this.originEntity = apiParams.originEntity;
 
     for (const key in apiParams) {
@@ -142,7 +143,7 @@ function BackendScriptApi(currentNote, apiParams) {
      * @method
      * @param {string} noteId
      * @param {string} parentNoteId
-     * @param {string} prefix - if branch will be created between note and parent note, set this prefix
+     * @param {string} prefix - if branch is created between note and parent note, set this prefix
      * @returns {{branch: BBranch|null}}
      */
     this.ensureNoteIsPresentInParent = cloningService.ensureNoteIsPresentInParent;
@@ -164,7 +165,7 @@ function BackendScriptApi(currentNote, apiParams) {
      * @param {boolean} present - true if we want the branch to exist, false if we want it gone
      * @param {string} noteId
      * @param {string} parentNoteId
-     * @param {string} prefix - if branch will be created between note and parent note, set this prefix
+     * @param {string} prefix - if branch is created between note and parent note, set this prefix
      * @returns {void}
      */
     this.toggleNoteInParent = cloningService.toggleNoteInParent;
@@ -244,7 +245,7 @@ function BackendScriptApi(currentNote, apiParams) {
 
         const parentNote = becca.getNote(parentNoteId);
 
-        // code note type can be inherited, otherwise text is default
+        // code note type can be inherited, otherwise "text" is the default
         extraOptions.type = parentNote.type === 'code' ? 'code' : 'text';
         extraOptions.mime = parentNote.type === 'code' ? parentNote.mime : 'text/html';
 
@@ -412,7 +413,7 @@ function BackendScriptApi(currentNote, apiParams) {
      * Return randomly generated string of given length. This random string generation is NOT cryptographically secure.
      *
      * @method
-     * @param {number} length of the string
+     * @param {int} length of the string
      * @returns {string} random string
      */
     this.randomString = utils.randomString;
@@ -528,6 +529,62 @@ function BackendScriptApi(currentNote, apiParams) {
      * @returns {Promise<void>}
      */
     this.exportSubtreeToZipFile = async (noteId, format, zipFilePath) => await exportService.exportToZipFile(noteId, format, zipFilePath);
+
+    /**
+     * Executes given anonymous function on the frontend(s).
+     * Internally this serializes the anonymous function into string and sends it to frontend(s) via WebSocket.
+     * Note that there can be multiple connected frontend instances (e.g. in different tabs). In such case, all
+     * instances execute the given function.
+     *
+     * @method
+     * @param {string} script - script to be executed on the frontend
+     * @param {Array.<?>} params - list of parameters to the anonymous function to be sent to frontend
+     * @returns {undefined} - no return value is provided.
+     */
+    this.runOnFrontend = async (script, params = []) => {
+        if (typeof script === "function") {
+            script = script.toString();
+        }
+
+        ws.sendMessageToAllClients({
+            type: 'execute-script',
+            script: script,
+            params: prepareParams(params),
+            startNoteId: this.startNote.noteId,
+            currentNoteId: this.currentNote.noteId,
+            originEntityName: "notes", // currently there's no other entity on the frontend which can trigger event
+            originEntityId: this.originEntity?.noteId || null
+        });
+
+        function prepareParams(params) {
+            if (!params) {
+                return params;
+            }
+
+            return params.map(p => {
+                if (typeof p === "function") {
+                    return `!@#Function: ${p.toString()}`;
+                }
+                else {
+                    return p;
+                }
+            });
+        }
+    };
+
+    /**
+     * Sync process can make data intermittently inconsistent. Scripts which require strong data consistency
+     * can use this function to wait for a possible sync process to finish and prevent new sync process from starting
+     * while it is running.
+     *
+     * Because this is an async process, the inner callback doesn't have automatic transaction handling, so in case
+     * you need to make some DB changes, you need to surround your call with api.transactional(...)
+     *
+     * @method
+     * @param {function} callback - function to be executed while sync process is not running
+     * @returns {Promise} - resolves once the callback is finished (callback is awaited)
+     */
+    this.runOutsideOfSync = syncMutex.doExclusively;
 
     /**
      * This object contains "at your risk" and "no BC guarantees" objects for advanced use cases.

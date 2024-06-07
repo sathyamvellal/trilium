@@ -5,28 +5,27 @@ const log = require('../../services/log');
 const sql = require('../../services/sql');
 const utils = require('../../services/utils');
 const dateUtils = require('../../services/date_utils');
-const entityChangesService = require('../../services/entity_changes');
 const AbstractBeccaEntity = require("./abstract_becca_entity");
-const BNoteRevision = require("./bnote_revision");
+const BRevision = require("./brevision");
+const BAttachment = require("./battachment");
 const TaskContext = require("../../services/task_context");
 const dayjs = require("dayjs");
 const utc = require('dayjs/plugin/utc');
 const eventService = require("../../services/events");
-const cls = require("../../services/cls.js");
 dayjs.extend(utc);
 
 const LABEL = 'label';
 const RELATION = 'relation';
 
 /**
- * Trilium's main entity which can represent text note, image, code note, file attachment etc.
+ * Trilium's main entity, which can represent text note, image, code note, file attachment etc.
  *
  * @extends AbstractBeccaEntity
  */
 class BNote extends AbstractBeccaEntity {
     static get entityName() { return "notes"; }
     static get primaryKeyName() { return "noteId"; }
-    static get hashedProperties() { return ["noteId", "title", "isProtected", "type", "mime"]; }
+    static get hashedProperties() { return ["noteId", "title", "isProtected", "type", "mime", "blobId"]; }
 
     constructor(row) {
         super();
@@ -46,6 +45,7 @@ class BNote extends AbstractBeccaEntity {
             row.type,
             row.mime,
             row.isProtected,
+            row.blobId,
             row.dateCreated,
             row.dateModified,
             row.utcDateCreated,
@@ -53,19 +53,21 @@ class BNote extends AbstractBeccaEntity {
         ]);
     }
 
-    update([noteId, title, type, mime, isProtected, dateCreated, dateModified, utcDateCreated, utcDateModified]) {
+    update([noteId, title, type, mime, isProtected, blobId, dateCreated, dateModified, utcDateCreated, utcDateModified]) {
         // ------ Database persisted attributes ------
 
         /** @type {string} */
         this.noteId = noteId;
         /** @type {string} */
         this.title = title;
-        /** @type {boolean} */
-        this.isProtected = !!isProtected;
         /** @type {string} */
         this.type = type;
         /** @type {string} */
         this.mime = mime;
+        /** @type {boolean} */
+        this.isProtected = !!isProtected;
+        /** @type {string} */
+        this.blobId = blobId;
         /** @type {string} */
         this.dateCreated = dateCreated || dateUtils.localNowDateTime();
         /** @type {string} */
@@ -121,7 +123,7 @@ class BNote extends AbstractBeccaEntity {
          * @private */
         this.__ancestorCache = null;
 
-        // following attributes are filled during searching from database
+        // following attributes are filled during searching in the database
 
         /**
          * size of the content in bytes
@@ -130,11 +132,17 @@ class BNote extends AbstractBeccaEntity {
          */
         this.contentSize = null;
         /**
-         * size of the content and note revision contents in bytes
+         * size of the note content, attachment contents in bytes
          * @type {int|null}
          * @private
          */
-        this.noteSize = null;
+        this.contentAndAttachmentsSize = null;
+        /**
+         * size of the note content, attachment contents and revision contents in bytes
+         * @type {int|null}
+         * @private
+         */
+        this.contentAndAttachmentsAndRevisionsSize = null;
         /**
          * number of note revisions for this note
          * @type {int|null}
@@ -204,49 +212,48 @@ class BNote extends AbstractBeccaEntity {
      * - but to the user note content and title changes are one and the same - single dateModified (so all changes must go through Note and content is not a separate entity)
      */
 
-    /** @returns {*} */
-    getContent(silentNotFoundError = false) {
-        const row = sql.getRow(`SELECT content FROM note_contents WHERE noteId = ?`, [this.noteId]);
+    /** @returns {string|Buffer}  */
+    getContent() {
+        return this._getContent();
+    }
 
-        if (!row) {
-            if (silentNotFoundError) {
-                return undefined;
-            }
-            else {
-                throw new Error(`Cannot find note content for noteId=${this.noteId}`);
-            }
+    /**
+     * @returns {*}
+     * @throws Error in case of invalid JSON */
+    getJsonContent() {
+        const content = this.getContent();
+
+        if (!content || !content.trim()) {
+            return null;
         }
 
-        let content = row.content;
+        return JSON.parse(content);
+    }
 
-        if (this.isProtected) {
-            if (protectedSessionService.isProtectedSessionAvailable()) {
-                content = content === null ? null : protectedSessionService.decrypt(content);
-            }
-            else {
-                content = "";
-            }
+    /** @returns {*|null} valid object or null if the content cannot be parsed as JSON */
+    getJsonContentSafely() {
+        try {
+            return this.getJsonContent();
         }
-
-        if (this.isStringNote()) {
-            return content === null
-                ? ""
-                : content.toString("UTF-8");
-        }
-        else {
-            return content;
+        catch (e) {
+            return null;
         }
     }
 
-    /** @returns {{contentLength, dateModified, utcDateModified}} */
-    getContentMetadata() {
-        return sql.getRow(`
-            SELECT 
-                LENGTH(content) AS contentLength, 
-                dateModified,
-                utcDateModified 
-            FROM note_contents 
-            WHERE noteId = ?`, [this.noteId]);
+    /**
+     * @param content
+     * @param {object} [opts]
+     * @param {object} [opts.forceSave=false] - will also save this BNote entity
+     * @param {object} [opts.forceFrontendReload=false] - override frontend heuristics on when to reload, instruct to reload
+     */
+    setContent(content, opts) {
+        this._setContent(content, opts);
+
+        eventService.emit(eventService.NOTE_CONTENT_CHANGE, { entity: this });
+    }
+
+    setJsonContent(content) {
+        this.setContent(JSON.stringify(content, null, '\t'));
     }
 
     get dateCreatedObj() {
@@ -263,70 +270,6 @@ class BNote extends AbstractBeccaEntity {
 
     get utcDateModifiedObj() {
         return this.utcDateModified === null ? null : dayjs.utc(this.utcDateModified);
-    }
-
-    /** @returns {*} */
-    getJsonContent() {
-        const content = this.getContent();
-
-        if (!content || !content.trim()) {
-            return null;
-        }
-
-        return JSON.parse(content);
-    }
-
-    setContent(content, ignoreMissingProtectedSession = false) {
-        if (content === null || content === undefined) {
-            throw new Error(`Cannot set null content to note '${this.noteId}'`);
-        }
-
-        if (this.isStringNote()) {
-            content = content.toString();
-        }
-        else {
-            content = Buffer.isBuffer(content) ? content : Buffer.from(content);
-        }
-
-        const pojo = {
-            noteId: this.noteId,
-            content: content,
-            dateModified: dateUtils.localNowDateTime(),
-            utcDateModified: dateUtils.utcNowDateTime()
-        };
-
-        if (this.isProtected) {
-            if (protectedSessionService.isProtectedSessionAvailable()) {
-                pojo.content = protectedSessionService.encrypt(pojo.content);
-            }
-            else if (!ignoreMissingProtectedSession) {
-                throw new Error(`Cannot update content of noteId '${this.noteId}' since we're out of protected session.`);
-            }
-        }
-
-        sql.upsert("note_contents", "noteId", pojo);
-
-        const hash = utils.hash(`${this.noteId}|${pojo.content.toString()}`);
-
-        entityChangesService.addEntityChange({
-            entityName: 'note_contents',
-            entityId: this.noteId,
-            hash: hash,
-            isErased: false,
-            utcDateChanged: pojo.utcDateModified,
-            isSynced: true
-        });
-
-        if (!cls.isEntityEventsDisabled()) {
-            eventService.emit(eventService.ENTITY_CHANGED, {
-                entityName: 'note_contents',
-                entity: this
-            });
-        }
-    }
-
-    setJsonContent(content) {
-        this.setContent(JSON.stringify(content, null, '\t'));
     }
 
     /** @returns {boolean} true if this note is the root of the note tree. Root note has "root" noteId */
@@ -359,8 +302,13 @@ class BNote extends AbstractBeccaEntity {
             || (this.type === 'file' && this.mime?.startsWith('image/'));
     }
 
-    /** @returns {boolean} true if the note has string content (not binary) */
+    /** @deprecated use hasStringContent() instead */
     isStringNote() {
+        return this.hasStringContent();
+    }
+
+    /** @returns {boolean} true if the note has string content (not binary) */
+    hasStringContent() {
         return utils.isStringNote(this.type, this.mime);
     }
 
@@ -382,6 +330,9 @@ class BNote extends AbstractBeccaEntity {
     }
 
     /**
+     * Beware that the method must not create a copy of the array, but actually returns its internal array
+     * (for performance reasons)
+     *
      * @param {string} [type] - (optional) attribute type to filter
      * @param {string} [name] - (optional) attribute name to filter
      * @returns {BAttribute[]} all note's attributes, including inherited ones
@@ -400,7 +351,6 @@ class BNote extends AbstractBeccaEntity {
             return this.__attributeCache.filter(attr => attr.name === name);
         }
         else {
-            // a bit unsafe to return the original array, but defensive copy would be costly
             return this.__attributeCache;
         }
     }
@@ -631,7 +581,8 @@ class BNote extends AbstractBeccaEntity {
     /**
      * @param {string} type - attribute type (label, relation, etc.)
      * @param {string} name - attribute name
-     * @returns {BAttribute} attribute of given type and name. If there's more such attributes, first is  returned. Returns null if there's no such attribute belonging to this note.
+     * @returns {BAttribute} attribute of the given type and name. If there are more such attributes, first is returned.
+     *                       Returns null if there's no such attribute belonging to this note.
      */
     getAttribute(type, name) {
         const attributes = this.getAttributes();
@@ -710,6 +661,9 @@ class BNote extends AbstractBeccaEntity {
     }
 
     /**
+     * Beware that the method must not create a copy of the array, but actually returns its internal array
+     * (for performance reasons)
+     *
      * @param {string|null} [type] - (optional) attribute type to filter
      * @param {string|null} [name] - (optional) attribute name to filter
      * @param {string|null} [value] - (optional) attribute value to filter
@@ -731,7 +685,7 @@ class BNote extends AbstractBeccaEntity {
             return this.ownedAttributes.filter(attr => attr.name === name);
         }
         else {
-            return this.ownedAttributes.slice();
+            return this.ownedAttributes;
         }
     }
 
@@ -753,7 +707,7 @@ class BNote extends AbstractBeccaEntity {
     areAllNotePathsArchived() {
         // there's a slight difference between note being itself archived and all its note paths being archived
         // - note is archived when it itself has an archived label or inherits it
-        // - note does not have or inherit archived label, but each note paths contains a note with (non-inheritable)
+        // - note does not have or inherit archived label, but each note path contains a note with (non-inheritable)
         //   archived label
 
         const bestNotePathRecord = this.getSortedNotePathRecords()[0];
@@ -1006,7 +960,7 @@ class BNote extends AbstractBeccaEntity {
         };
     }
 
-    /** @returns {String[]} - includes the subtree node as well */
+    /** @returns {string[]} - includes the subtree root note as well */
     getSubtreeNoteIds({includeArchived = true, includeHidden = false, resolveSearch = false} = {}) {
         return this.getSubtree({includeArchived, includeHidden, resolveSearch})
             .notes
@@ -1092,6 +1046,11 @@ class BNote extends AbstractBeccaEntity {
         return this.__ancestorCache;
     }
 
+    /** @returns {string[]} */
+    getAncestorNoteIds() {
+        return this.getAncestors().map(note => note.noteId);
+    }
+
     /** @returns {boolean} */
     hasAncestor(ancestorNoteId) {
         for (const ancestorNote of this.getAncestors()) {
@@ -1107,6 +1066,7 @@ class BNote extends AbstractBeccaEntity {
         return this.noteId === '_hidden' || this.hasAncestor('_hidden');
     }
 
+    /** @returns {BAttribute[]} */
     getTargetRelations() {
         return this.targetRelations;
     }
@@ -1143,10 +1103,67 @@ class BNote extends AbstractBeccaEntity {
         return minDistance;
     }
 
-    /** @returns {BNoteRevision[]} */
-    getNoteRevisions() {
-        return sql.getRows("SELECT * FROM note_revisions WHERE noteId = ?", [this.noteId])
-            .map(row => new BNoteRevision(row));
+    /** @returns {BRevision[]} */
+    getRevisions() {
+        return sql.getRows("SELECT * FROM revisions WHERE noteId = ?", [this.noteId])
+            .map(row => new BRevision(row));
+    }
+
+    /** @returns {BAttachment[]} */
+    getAttachments(opts = {}) {
+        opts.includeContentLength = !!opts.includeContentLength;
+        // from testing, it looks like calculating length does not make a difference in performance even on large-ish DB
+        // given that we're always fetching attachments only for a specific note, we might just do it always
+
+        const query = opts.includeContentLength
+            ? `SELECT attachments.*, LENGTH(blobs.content) AS contentLength
+               FROM attachments 
+               JOIN blobs USING (blobId) 
+               WHERE ownerId = ? AND isDeleted = 0 
+               ORDER BY position`
+            : `SELECT * FROM attachments WHERE ownerId = ? AND isDeleted = 0 ORDER BY position`;
+
+        return sql.getRows(query, [this.noteId])
+            .map(row => new BAttachment(row));
+    }
+
+    /** @returns {BAttachment|null} */
+    getAttachmentById(attachmentId, opts = {}) {
+        opts.includeContentLength = !!opts.includeContentLength;
+
+        const query = opts.includeContentLength
+            ? `SELECT attachments.*, LENGTH(blobs.content) AS contentLength
+               FROM attachments 
+               JOIN blobs USING (blobId) 
+               WHERE ownerId = ? AND attachmentId = ? AND isDeleted = 0`
+            : `SELECT * FROM attachments WHERE ownerId = ? AND attachmentId = ? AND isDeleted = 0`;
+
+        return sql.getRows(query, [this.noteId, attachmentId])
+            .map(row => new BAttachment(row))[0];
+    }
+
+    /** @returns {BAttachment[]} */
+    getAttachmentsByRole(role) {
+        return sql.getRows(`
+                SELECT attachments.*
+                FROM attachments 
+                WHERE ownerId = ? 
+                  AND role = ?
+                  AND isDeleted = 0
+                ORDER BY position`, [this.noteId, role])
+            .map(row => new BAttachment(row));
+    }
+
+    /** @returns {BAttachment} */
+    getAttachmentByTitle(title) {
+        return sql.getRows(`
+                SELECT attachments.*
+                FROM attachments 
+                WHERE ownerId = ? 
+                  AND title = ?
+                  AND isDeleted = 0
+                ORDER BY position`, [this.noteId, title])
+            .map(row => new BAttachment(row))[0];
     }
 
     /**
@@ -1160,13 +1177,10 @@ class BNote extends AbstractBeccaEntity {
         }
 
         const parentNotes = this.getParentNotes();
-        let notePaths = [];
 
-        if (parentNotes.length === 1) { // optimization for most common case
-            notePaths = parentNotes[0].getAllNotePaths();
-        } else {
-            notePaths = parentNotes.flatMap(parentNote => parentNote.getAllNotePaths());
-        }
+        const notePaths = parentNotes.length === 1
+            ? parentNotes[0].getAllNotePaths() // optimization for the most common case
+            : parentNotes.flatMap(parentNote => parentNote.getAllNotePaths());
 
         for (const notePath of notePaths) {
             notePath.push(this.noteId);
@@ -1205,7 +1219,7 @@ class BNote extends AbstractBeccaEntity {
     }
 
     /**
-     * Returns note path considered to be the "best"
+     * Returns a note path considered to be the "best"
      *
      * @param {string} [hoistedNoteId='root']
      * @return {string[]} array of noteIds constituting the particular note path
@@ -1215,7 +1229,7 @@ class BNote extends AbstractBeccaEntity {
     }
 
     /**
-     * Returns note path considered to be the "best"
+     * Returns a note path considered to be the "best"
      *
      * @param {string} [hoistedNoteId='root']
      * @return {string} serialized note path (e.g. 'root/a1h315/js725h')
@@ -1313,10 +1327,10 @@ class BNote extends AbstractBeccaEntity {
      * @param {string} name - name of the attribute, not including the leading ~/#
      * @param {string} [value] - value of the attribute - text for labels, target note ID for relations; optional.
      * @param {boolean} [isInheritable=false]
-     * @param {int} [position]
+     * @param {int|null} [position]
      * @returns {BAttribute}
      */
-    addAttribute(type, name, value = "", isInheritable = false, position = 1000) {
+    addAttribute(type, name, value = "", isInheritable = false, position = null) {
         const BAttribute = require("./battribute");
 
         return new BAttribute({
@@ -1355,7 +1369,7 @@ class BNote extends AbstractBeccaEntity {
     }
 
     /**
-     * Based on enabled, attribute is either set or removed.
+     * Based on enabled, the attribute is either set or removed.
      *
      * @param {string} type - attribute type ('relation', 'label' etc.)
      * @param {boolean} enabled - toggle On or Off
@@ -1414,7 +1428,7 @@ class BNote extends AbstractBeccaEntity {
     removeLabel(name, value) { return this.removeAttribute(LABEL, name, value); }
 
     /**
-     * Remove relation name-value pair, if it exists.
+     * Remove the relation name-value pair, if it exists.
      *
      * @param {string} name - relation name
      * @param {string} [value] - relation value (noteId)
@@ -1443,13 +1457,89 @@ class BNote extends AbstractBeccaEntity {
         return cloningService.cloneNoteToBranch(this.noteId, branch.branchId);
     }
 
+    isEligibleForConversionToAttachment(opts = {autoConversion: false}) {
+        if (this.type !== 'image' || !this.isContentAvailable() || this.hasChildren() || this.getParentBranches().length !== 1) {
+            return false;
+        }
+
+        const targetRelations = this.getTargetRelations().filter(relation => relation.name === 'imageLink');
+
+        if (opts.autoConversion && targetRelations.length === 0) {
+            return false;
+        } else if (targetRelations.length > 1) {
+            return false;
+        }
+
+        const parentNote = this.getParentNotes()[0]; // at this point note can have only one parent
+        const referencingNote = targetRelations[0]?.getNote();
+
+        if (referencingNote && parentNote !== referencingNote) {
+            return false;
+        } else if (parentNote.type !== 'text' || !parentNote.isContentAvailable()) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Some notes are eligible for conversion into an attachment of its parent, note must have these properties:
+     * - it has exactly one target relation
+     * - it has a relation from its parent note
+     * - it has no children
+     * - it has no clones
+     * - the parent is of type text
+     * - both notes are either unprotected or user is in protected session
+     *
+     * Currently, works only for image notes.
+     *
+     * In the future, this functionality might get more generic and some of the requirements relaxed.
+     *
+     * @params {Object} [opts]
+     * @params {bolean} [opts.autoConversion=false} if true, the action is not triggered by user, but e.g. by migration,
+     *                                              and only perfect candidates will be migrated
+     *
+     * @returns {BAttachment|null} - null if note is not eligible for conversion
+     */
+    convertToParentAttachment(opts = {autoConversion: false}) {
+        if (!this.isEligibleForConversionToAttachment(opts)) {
+            return null;
+        }
+
+        const content = this.getContent();
+
+        const parentNote = this.getParentNotes()[0];
+        const attachment = parentNote.saveAttachment({
+            role: 'image',
+            mime: this.mime,
+            title: this.title,
+            content: content
+        });
+
+        let parentContent = parentNote.getContent();
+
+        const oldNoteUrl = `api/images/${this.noteId}/`;
+        const newAttachmentUrl = `api/attachments/${attachment.attachmentId}/image/`;
+
+        const fixedContent = utils.replaceAll(parentContent, oldNoteUrl, newAttachmentUrl);
+
+        parentNote.setContent(fixedContent);
+
+        const noteService = require("../../services/notes");
+        noteService.asyncPostProcessContent(parentNote, fixedContent); // to mark an unused attachment for deletion
+
+        this.deleteNote();
+
+        return attachment;
+    }
+
     /**
      * (Soft) delete a note and all its descendants.
      *
-     * @param {string} [deleteId] - optional delete identified
+     * @param {string} [deleteId=null] - optional delete identified
      * @param {TaskContext} [taskContext]
      */
-    deleteNote(deleteId, taskContext) {
+    deleteNote(deleteId = null, taskContext = null) {
         if (this.isDeleted) {
             return;
         }
@@ -1495,42 +1585,90 @@ class BNote extends AbstractBeccaEntity {
     }
 
     get isDeleted() {
+        // isBeingDeleted is relevant only in the transition period when the deletion process has begun, but not yet
+        // finished (note is still in becca)
         return !(this.noteId in this.becca.notes) || this.isBeingDeleted;
     }
 
     /**
-     * @returns {BNoteRevision|null}
+     * @returns {BRevision|null}
      */
-    saveNoteRevision() {
-        const content = this.getContent();
+    saveRevision() {
+        return sql.transactional(() => {
+            let noteContent = this.getContent();
 
-        if (!content || (Buffer.isBuffer(content) && content.byteLength === 0)) {
-            return null;
+            const revision = new BRevision({
+                noteId: this.noteId,
+                // title and text should be decrypted now
+                title: this.title,
+                type: this.type,
+                mime: this.mime,
+                isProtected: this.isProtected,
+                utcDateLastEdited: this.utcDateModified,
+                utcDateCreated: dateUtils.utcNowDateTime(),
+                utcDateModified: dateUtils.utcNowDateTime(),
+                dateLastEdited: this.dateModified,
+                dateCreated: dateUtils.localNowDateTime()
+            }, true);
+
+            revision.save(); // to generate revisionId, which is then used to save attachments
+
+            for (const noteAttachment of this.getAttachments()) {
+                const revisionAttachment = noteAttachment.copy();
+                revisionAttachment.ownerId = revision.revisionId;
+                revisionAttachment.setContent(noteAttachment.getContent(), {forceSave: true});
+
+                if (this.type === 'text') {
+                    // content is rewritten to point to the revision attachments
+                    noteContent = noteContent.replaceAll(`attachments/${noteAttachment.attachmentId}`,
+                        `attachments/${revisionAttachment.attachmentId}`);
+
+                    noteContent = noteContent.replaceAll(new RegExp(`href="[^"]*attachmentId=${noteAttachment.attachmentId}[^"]*"`, 'gi'),
+                        `href="api/attachments/${revisionAttachment.attachmentId}/download"`);
+                }
+            }
+
+            revision.setContent(noteContent);
+
+            return revision;
+        });
+    }
+
+    /**
+     * @param {string} matchBy - choose by which property we detect if to update an existing attachment.
+ *                               Supported values are either 'attachmentId' (default) or 'title'
+     * @returns {BAttachment}
+     */
+    saveAttachment({attachmentId, role, mime, title, content, position}, matchBy = 'attachmentId') {
+        if (!['attachmentId', 'title'].includes(matchBy)) {
+            throw new Error(`Unsupported value '${matchBy}' for matchBy param, has to be either 'attachmentId' or 'title'.`);
         }
 
-        const contentMetadata = this.getContentMetadata();
+        let attachment;
 
-        const noteRevision = new BNoteRevision({
-            noteId: this.noteId,
-            // title and text should be decrypted now
-            title: this.title,
-            type: this.type,
-            mime: this.mime,
+        if (matchBy === 'title') {
+            attachment = this.getAttachmentByTitle(title);
+        } else if (matchBy === 'attachmentId' && attachmentId) {
+            attachment = this.becca.getAttachmentOrThrow(attachmentId);
+        }
+
+        attachment = attachment || new BAttachment({
+            ownerId: this.noteId,
+            title,
+            role,
+            mime,
             isProtected: this.isProtected,
-            utcDateLastEdited: this.utcDateModified > contentMetadata.utcDateModified
-                ? this.utcDateModified
-                : contentMetadata.utcDateModified,
-            utcDateCreated: dateUtils.utcNowDateTime(),
-            utcDateModified: dateUtils.utcNowDateTime(),
-            dateLastEdited: this.dateModified > contentMetadata.dateModified
-                ? this.dateModified
-                : contentMetadata.dateModified,
-            dateCreated: dateUtils.localNowDateTime()
-        }, true).save();
+            position
+        });
 
-        noteRevision.setContent(content);
+        content = content || "";
+        attachment.setContent(content, {forceSave: true});
 
-        return noteRevision;
+        return attachment;
+    }
+
+    getFileName() {
+        return utils.formatDownloadTitle(this.title, this.type, this.mime);
     }
 
     beforeSaving() {
@@ -1549,6 +1687,7 @@ class BNote extends AbstractBeccaEntity {
             isProtected: this.isProtected,
             type: this.type,
             mime: this.mime,
+            blobId: this.blobId,
             isDeleted: false,
             dateCreated: this.dateCreated,
             dateModified: this.dateModified,

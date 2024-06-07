@@ -18,7 +18,7 @@ export default class RootCommandExecutor extends Component {
     async showSQLConsoleCommand() {
         const sqlConsoleNote = await dateNoteService.createSqlConsole();
 
-        const noteContext = await appContext.tabManager.openContextWithNote(sqlConsoleNote.noteId, { activate: true });
+        const noteContext = await appContext.tabManager.openTabWithNoteWithHoisting(sqlConsoleNote.noteId, { activate: true });
 
         appContext.triggerEvent('focusOnDetail', {ntxId: noteContext.ntxId});
     }
@@ -29,19 +29,15 @@ export default class RootCommandExecutor extends Component {
         // force immediate search
         await froca.loadSearchNote(searchNote.noteId);
 
-        const activeNoteContext = appContext.tabManager.getActiveContext();
-        const hoistedNoteId = activeNoteContext?.hoistedNoteId || 'root';
-
-        const noteContext = await appContext.tabManager.openContextWithNote(searchNote.noteId, {
-            activate: true,
-            hoistedNoteId
+        const noteContext = await appContext.tabManager.openTabWithNoteWithHoisting(searchNote.noteId, {
+            activate: true
         });
 
         appContext.triggerCommand('focusOnSearchDefinition', {ntxId: noteContext.ntxId});
     }
 
     async searchInSubtreeCommand({notePath}) {
-        const noteId = treeService.getNoteIdFromNotePath(notePath);
+        const noteId = treeService.getNoteIdFromUrl(notePath);
 
         this.searchNotesCommand({ancestorNoteId: noteId});
     }
@@ -107,7 +103,7 @@ export default class RootCommandExecutor extends Component {
     }
 
     async showBackendLogCommand() {
-        await appContext.tabManager.openContextWithNote('_backendLog', { activate: true });
+        await appContext.tabManager.openTabWithNoteWithHoisting('_backendLog', { activate: true });
     }
 
     async showLaunchBarSubtreeCommand() {
@@ -148,7 +144,38 @@ export default class RootCommandExecutor extends Component {
         const notePath = appContext.tabManager.getActiveContextNotePath();
 
         if (notePath) {
-            await appContext.tabManager.openContextWithNote(notePath, { activate: true, viewMode: 'source' });
+            await appContext.tabManager.openTabWithNoteWithHoisting(notePath, {
+                activate: true,
+                viewScope: {
+                    viewMode: 'source'
+                }
+            });
+        }
+    }
+
+    async showAttachmentsCommand() {
+        const notePath = appContext.tabManager.getActiveContextNotePath();
+
+        if (notePath) {
+            await appContext.tabManager.openTabWithNoteWithHoisting(notePath, {
+                activate: true,
+                viewScope: {
+                    viewMode: 'attachments'
+                }
+            });
+        }
+    }
+
+    async showAttachmentDetailCommand() {
+        const notePath = appContext.tabManager.getActiveContextNotePath();
+
+        if (notePath) {
+            await appContext.tabManager.openTabWithNoteWithHoisting(notePath, {
+                activate: true,
+                viewScope: {
+                    viewMode: 'attachments'
+                }
+            });
         }
     }
 }

@@ -88,7 +88,7 @@ async function createInitialDatabase() {
         optionsInitService.initDocumentOptions();
         optionsInitService.initNotSyncedOptions(true, {});
         optionsInitService.initStartupOptions();
-        require("./password").resetPassword();
+        require("./encryption/password").resetPassword();
     });
 
     log.info("Importing demo content ...");
@@ -99,14 +99,14 @@ async function createInitialDatabase() {
     await zipImportService.importZip(dummyTaskContext, demoFile, rootNote);
 
     sql.transactional(() => {
-        // this needs to happen after ZIP import
-        // previous solution was to move option initialization here but then the important parts of initialization
+        // this needs to happen after ZIP import,
+        // the previous solution was to move option initialization here, but then the important parts of initialization
         // are not all in one transaction (because ZIP import is async and thus not transactional)
 
         const startNoteId = sql.getValue("SELECT noteId FROM branches WHERE parentNoteId = 'root' AND isDeleted = 0 ORDER BY notePosition");
 
         const optionService = require("./options");
-        optionService.setOption('openTabs', JSON.stringify([
+        optionService.setOption('openNoteContexts', JSON.stringify([
             {
                 notePath: startNoteId,
                 active: true
@@ -171,7 +171,7 @@ dbReady.then(() => {
     // kickoff first backup soon after start up
     setTimeout(() => require('./backup').regularBackup(), 5 * 60 * 1000);
 
-    // optimize is usually inexpensive no-op so running it semi-frequently is not a big deal
+    // optimize is usually inexpensive no-op, so running it semi-frequently is not a big deal
     setTimeout(() => optimize(), 60 * 60 * 1000);
 
     setInterval(() => optimize(), 10 * 60 * 60 * 1000);

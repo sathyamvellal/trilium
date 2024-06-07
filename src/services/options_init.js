@@ -11,7 +11,7 @@ function initDocumentOptions() {
 }
 
 function initNotSyncedOptions(initialized, opts = {}) {
-    optionService.createOption('openTabs', JSON.stringify([
+    optionService.createOption('openNoteContexts', JSON.stringify([
         {
             notePath: 'root',
             active: true
@@ -44,7 +44,7 @@ function initNotSyncedOptions(initialized, opts = {}) {
 }
 
 const defaultOptions = [
-    { name: 'noteRevisionSnapshotTimeInterval', value: '600', isSynced: true },
+    { name: 'revisionSnapshotTimeInterval', value: '600', isSynced: true },
     { name: 'protectedSessionTimeout', value: '600', isSynced: true },
     { name: 'zoomFactor', value: process.platform === "win32" ? '0.9' : '1.0', isSynced: false },
     { name: 'overrideThemeFonts', value: 'false', isSynced: false },
@@ -63,7 +63,7 @@ const defaultOptions = [
     { name: 'autoFixConsistencyIssues', value: 'true', isSynced: false },
     { name: 'vimKeymapEnabled', value: 'false', isSynced: false },
     { name: 'codeLineWrapEnabled', value: 'true', isSynced: false },
-    { name: 'codeNotesMimeTypes', value: '["text/x-csrc","text/x-c++src","text/x-csharp","text/css","text/x-go","text/x-groovy","text/x-haskell","text/html","message/http","text/x-java","application/javascript;env=frontend","application/javascript;env=backend","application/json","text/x-kotlin","text/x-markdown","text/x-perl","text/x-php","text/x-python","text/x-ruby",null,"text/x-sql","text/x-sqlite;schema=trilium","text/x-swift","text/xml","text/x-yaml"]', isSynced: true },
+    { name: 'codeNotesMimeTypes', value: '["text/x-csrc","text/x-c++src","text/x-csharp","text/css","text/x-go","text/x-groovy","text/x-haskell","text/html","message/http","text/x-java","application/javascript;env=frontend","application/javascript;env=backend","application/json","text/x-kotlin","text/x-markdown","text/x-perl","text/x-php","text/x-python","text/x-ruby",null,"text/x-sql","text/x-sqlite;schema=trilium","text/x-swift","text/xml","text/x-yaml","text/x-sh"]', isSynced: true },
     { name: 'leftPaneWidth', value: '25', isSynced: false },
     { name: 'leftPaneVisible', value: 'true', isSynced: false },
     { name: 'rightPaneWidth', value: '25', isSynced: false },
@@ -73,10 +73,6 @@ const defaultOptions = [
     { name: 'nativeTitleBarVisible', value: 'false', isSynced: false },
     { name: 'eraseEntitiesAfterTimeInSeconds', value: '604800', isSynced: true }, // default is 7 days
     { name: 'hideArchivedNotes_main', value: 'false', isSynced: false },
-    { name: 'hideIncludedImages_main', value: 'true', isSynced: false },
-    { name: 'attributeListExpanded', value: 'false', isSynced: false },
-    { name: 'promotedAttributesExpanded', value: 'true', isSynced: true },
-    { name: 'similarNotesExpanded', value: 'true', isSynced: true },
     { name: 'debugModeEnabled', value: 'false', isSynced: false },
     { name: 'headingStyle', value: 'underline', isSynced: true },
     { name: 'autoCollapseNoteTree', value: 'true', isSynced: true },
@@ -89,14 +85,18 @@ const defaultOptions = [
     { name: 'compressImages', value: 'true', isSynced: true },
     { name: 'downloadImagesAutomatically', value: 'true', isSynced: true },
     { name: 'minTocHeadings', value: '5', isSynced: true },
+    { name: 'highlightsList', value: '["bold","italic","underline","color","bgColor"]', isSynced: true },
     { name: 'checkForUpdates', value: 'true', isSynced: true },
     { name: 'disableTray', value: 'false', isSynced: false },
-    { name: 'customSearchEngineName', value: 'Duckduckgo', isSynced: false },
-    { name: 'customSearchEngineUrl', value: 'https://duckduckgo.com/?q={keyword}', isSynced: false },
+    { name: 'eraseUnusedAttachmentsAfterSeconds', value: '2592000', isSynced: true },
+    { name: 'customSearchEngineName', value: 'DuckDuckGo', isSynced: true },
+    { name: 'customSearchEngineUrl', value: 'https://duckduckgo.com/?q={keyword}', isSynced: true },
+    { name: 'promotedAttributesOpenInRibbon', value: 'true', isSynced: true },
+    { name: 'editedNotesOpenInRibbon', value: 'true', isSynced: true }
 ];
 
 function initStartupOptions() {
-    const optionsMap = optionService.getOptionsMap();
+    const optionsMap = optionService.getOptionMap();
 
     const allDefaultOptions = defaultOptions.concat(getKeyboardDefaultOptions());
 
@@ -109,7 +109,7 @@ function initStartupOptions() {
     }
 
     if (process.env.TRILIUM_START_NOTE_ID || process.env.TRILIUM_SAFE_MODE) {
-        optionService.setOption('openTabs', JSON.stringify([
+        optionService.setOption('openNoteContexts', JSON.stringify([
             {
                 notePath: process.env.TRILIUM_START_NOTE_ID || 'root',
                 active: true

@@ -1,7 +1,6 @@
 import server from '../services/server.js';
 import noteAttributeCache from "../services/note_attribute_cache.js";
 import ws from "../services/ws.js";
-import options from "../services/options.js";
 import froca from "../services/froca.js";
 import protectedSessionHolder from "../services/protected_session_holder.js";
 import cssClassManager from "../services/css_class_manager.js";
@@ -32,6 +31,7 @@ class FNote {
      * @param {Object.<string, Object>} row
      */
     constructor(froca, row) {
+        /** @type {Froca} */
         this.froca = froca;
 
         /** @type {string[]} */
@@ -50,6 +50,9 @@ class FNote {
 
         /** @type {Object.<string, string>} */
         this.childToBranch = {};
+
+        /** @type {FAttachment[]|null} */
+        this.attachments = null; // lazy loaded
 
         this.update(row);
     }
@@ -117,10 +120,9 @@ class FNote {
     }
 
     async getContent() {
-        // we're not caching content since these objects are in froca and as such pretty long-lived
-        const note = await server.get(`notes/${this.noteId}`);
+        const blob = await this.getBlob();
 
-        return note.content;
+        return blob?.content;
     }
 
     async getJsonContent() {
@@ -192,7 +194,7 @@ class FNote {
     }
 
     // will sort the parents so that non-search & non-archived are first and archived at the end
-    // this is done so that non-search & non-archived paths are always explored as first when looking for note path
+    // this is done so that non-search & non-archived paths are always explored as first when looking for a note path
     sortParents() {
         this.parents.sort((aNoteId, bNoteId) => {
             const aBranchId = this.parentToBranch[aNoteId];
@@ -223,6 +225,51 @@ class FNote {
     /** @returns {Promise<FNote[]>} */
     async getChildNotes() {
         return await this.froca.getNotes(this.children);
+    }
+
+    /** @returns {Promise<FAttachment[]>} */
+    async getAttachments() {
+        if (!this.attachments) {
+            this.attachments = await this.froca.getAttachmentsForNote(this.noteId);
+        }
+
+        return this.attachments;
+    }
+
+    /** @returns {Promise<FAttachment[]>} */
+    async getAttachmentsByRole(role) {
+        return (await this.getAttachments())
+            .filter(attachment => attachment.role === role);
+    }
+
+    /** @returns {Promise<FAttachment>} */
+    async getAttachmentById(attachmentId) {
+        const attachments = await this.getAttachments();
+
+        return attachments.find(att => att.attachmentId === attachmentId);
+    }
+
+    isEligibleForConversionToAttachment() {
+        if (this.type !== 'image' || !this.isContentAvailable() || this.hasChildren() || this.getParentBranches().length !== 1) {
+            return false;
+        }
+
+        const targetRelations = this.getTargetRelations().filter(relation => relation.name === 'imageLink');
+
+        if (targetRelations.length > 1) {
+            return false;
+        }
+
+        const parentNote = this.getParentNotes()[0]; // at this point note can have only one parent
+        const referencingNote = targetRelations[0]?.getNote();
+
+        if (referencingNote && referencingNote !== parentNote) {
+            return false;
+        } else if (parentNote.type !== 'text' || !parentNote.isContentAvailable()) {
+            return false;
+        }
+
+        return true;
     }
 
     /**
@@ -315,13 +362,10 @@ class FNote {
         }
 
         const parentNotes = this.getParentNotes().filter(note => note.type !== 'search');
-        let notePaths = [];
 
-        if (parentNotes.length === 1) { // optimization for most common case
-            notePaths = parentNotes[0].getAllNotePaths();
-        } else {
-            notePaths = parentNotes.flatMap(parentNote => parentNote.getAllNotePaths());
-        }
+        const notePaths = parentNotes.length === 1
+            ? parentNotes[0].getAllNotePaths() // optimization for the most common case
+            : parentNotes.flatMap(parentNote => parentNote.getAllNotePaths());
 
         for (const notePath of notePaths) {
             notePath.push(this.noteId);
@@ -332,7 +376,7 @@ class FNote {
 
     /**
      * @param {string} [hoistedNoteId='root']
-     * @return {Array<{isArchived: boolean, isInHoistedSubTree: boolean, notePath: Array<string>, isHidden: boolean}>}
+     * @return {Array<{isArchived: boolean, isInHoistedSubTree: boolean, isSearch: boolean, notePath: Array<string>, isHidden: boolean}>}
      */
     getSortedNotePathRecords(hoistedNoteId = 'root') {
         const isHoistedRoot = hoistedNoteId === 'root';
@@ -341,6 +385,7 @@ class FNote {
             notePath: path,
             isInHoistedSubTree: isHoistedRoot || path.includes(hoistedNoteId),
             isArchived: path.some(noteId => froca.notes[noteId].isArchived),
+            isSearch: path.find(noteId => froca.notes[noteId].type === 'search'),
             isHidden: path.includes('_hidden')
         }));
 
@@ -351,6 +396,8 @@ class FNote {
                 return a.isArchived ? 1 : -1;
             } else if (a.isHidden !== b.isHidden) {
                 return a.isHidden ? 1 : -1;
+            } else if (a.isSearch !== b.isSearch) {
+                return a.isSearch ? 1 : -1;
             } else {
                 return a.notePath.length - b.notePath.length;
             }
@@ -360,7 +407,7 @@ class FNote {
     }
 
     /**
-     * Returns note path considered to be the "best"
+     * Returns the note path considered to be the "best"
      *
      * @param {string} [hoistedNoteId='root']
      * @return {string[]} array of noteIds constituting the particular note path
@@ -370,7 +417,7 @@ class FNote {
     }
 
     /**
-     * Returns note path considered to be the "best"
+     * Returns the note path considered to be the "best"
      *
      * @param {string} [hoistedNoteId='root']
      * @return {string} serialized note path (e.g. 'root/a1h315/js725h')
@@ -385,7 +432,9 @@ class FNote {
      * @return boolean - true if there's no non-hidden path, note is not cloned to the visible tree
      */
     isHiddenCompletely() {
-        if (this.noteId === 'root') {
+        if (this.noteId === '_hidden') {
+            return true;
+        } else if (this.noteId === 'root') {
             return false;
         }
 
@@ -510,17 +559,10 @@ class FNote {
             return;
         }
 
-        if (options.is("hideIncludedImages_main")) {
-            const imageLinks = this.getRelations('imageLink');
-
-            // image is already visible in the parent note so no need to display it separately in the book
-            childBranches = childBranches.filter(branch => !imageLinks.find(rel => rel.value === branch.noteId));
-        }
-
         // we're not checking hideArchivedNotes since that would mean we need to lazy load the child notes
         // which would seriously slow down everything.
         // we check this flag only once user chooses to expand the parent. This has the negative consequence that
-        // note may appear as folder but not contain any children when all of them are archived
+        // note may appear as a folder but not contain any children when all of them are archived
 
         return childBranches;
     }
@@ -564,7 +606,7 @@ class FNote {
     /**
      * @param {string} type - attribute type (label, relation, etc.)
      * @param {string} name - attribute name
-     * @returns {FAttribute} attribute of given type and name. If there's more such attributes, first is  returned. Returns null if there's no such attribute belonging to this note.
+     * @returns {FAttribute} attribute of the given type and name. If there are more such attributes, first is returned. Returns null if there's no such attribute belonging to this note.
      */
     getOwnedAttribute(type, name) {
         const attributes = this.getOwnedAttributes();
@@ -575,7 +617,7 @@ class FNote {
     /**
      * @param {string} type - attribute type (label, relation, etc.)
      * @param {string} name - attribute name
-     * @returns {FAttribute} attribute of given type and name. If there's more such attributes, first is  returned. Returns null if there's no such attribute belonging to this note.
+     * @returns {FAttribute} attribute of the given type and name. If there are more such attributes, first is returned. Returns null if there's no such attribute belonging to this note.
      */
     getAttribute(type, name) {
         const attributes = this.getAttributes();
@@ -586,7 +628,7 @@ class FNote {
     /**
      * @param {string} type - attribute type (label, relation, etc.)
      * @param {string} name - attribute name
-     * @returns {string} attribute value of given type and name or null if no such attribute exists.
+     * @returns {string} attribute value of the given type and name or null if no such attribute exists.
      */
     getOwnedAttributeValue(type, name) {
         const attr = this.getOwnedAttribute(type, name);
@@ -597,7 +639,7 @@ class FNote {
     /**
      * @param {string} type - attribute type (label, relation, etc.)
      * @param {string} name - attribute name
-     * @returns {string} attribute value of given type and name or null if no such attribute exists.
+     * @returns {string} attribute value of the given type and name or null if no such attribute exists.
      */
     getAttributeValue(type, name) {
         const attr = this.getAttribute(type, name);
@@ -729,7 +771,7 @@ class FNote {
     }
 
     getPromotedDefinitionAttributes() {
-        if (this.hasLabel('hidePromotedAttributes')) {
+        if (this.isLabelTruthy('hidePromotedAttributes')) {
             return [];
         }
 
@@ -741,7 +783,7 @@ class FNote {
                 return def && def.isPromoted;
             });
 
-        // attrs are not resorted if position changes after initial load
+        // attrs are not resorted if position changes after the initial load
         promotedAttrs.sort((a, b) => {
             if (a.noteId === b.noteId) {
                 return a.position < b.position ? -1 : 1;
@@ -807,7 +849,7 @@ class FNote {
     /**
      * Get relations which target this note
      *
-     * @returns {FNote[]}
+     * @returns {Promise<FNote[]>}
      */
     async getTargetRelationSourceNotes() {
         const targetRelations = this.getTargetRelations();
@@ -816,12 +858,16 @@ class FNote {
     }
 
     /**
-     * Return note complement which is most importantly note's content
-     *
-     * @returns {Promise<FNoteComplement>}
+     * @deprecated use getBlob() instead
+     * @return {Promise<FBlob>}
      */
     async getNoteComplement() {
-        return await this.froca.getNoteComplement(this.noteId);
+        return this.getBlob();
+    }
+
+    /** @return {Promise<FBlob>} */
+    async getBlob() {
+        return await this.froca.getBlob('notes', this.noteId);
     }
 
     toString() {
@@ -929,6 +975,10 @@ class FNote {
 
     isOptions() {
         return this.noteId.startsWith("_options");
+    }
+
+    async getMetadata() {
+        return await server.get(`notes/${this.noteId}/metadata`);
     }
 }
 

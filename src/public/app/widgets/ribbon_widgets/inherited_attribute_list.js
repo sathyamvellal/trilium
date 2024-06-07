@@ -14,7 +14,7 @@ const TPL = `
         color: var(--muted-text-color);
         max-height: 200px;
         overflow: auto;
-        padding: 12px 12px 11px 12px;
+        padding: 14px 12px 13px 12px;
     }
     </style>
 
@@ -107,7 +107,7 @@ export default class InheritedAttributesWidget extends NoteContextAwareWidget {
     }
 
     entitiesReloadedEvent({loadResults}) {
-        if (loadResults.getAttributes(this.componentId).find(attr => attributeService.isAffecting(attr, this.note))) {
+        if (loadResults.getAttributeRows(this.componentId).find(attr => attributeService.isAffecting(attr, this.note))) {
             this.refresh();
         }
     }

@@ -13,9 +13,9 @@ const assetPath = require("../services/asset_path");
 const appPath = require("../services/app_path");
 
 function index(req, res) {
-    const options = optionService.getOptionsMap();
+    const options = optionService.getOptionMap();
 
-    let view = (!utils.isElectron() && req.cookies['trilium-device'] === 'mobile')
+    const view = (!utils.isElectron() && req.cookies['trilium-device'] === 'mobile')
         ? 'mobile'
         : 'desktop';
 
@@ -34,8 +34,7 @@ function index(req, res) {
         instanceName: config.General ? config.General.instanceName : null,
         appCssNoteIds: getAppCssNoteIds(),
         isDev: env.isDev(),
-        isMainWindow: !req.query.extra,
-        extraHoistedNoteId: req.query.extraHoistedNoteId,
+        isMainWindow: !req.query.extraWindow,
         isProtectedSessionAvailable: protectedSessionService.isProtectedSessionAvailable(),
         maxContentWidth: parseInt(options.maxContentWidth),
         triliumVersion: packageJson.version,
@@ -47,18 +46,14 @@ function index(req, res) {
 function getThemeCssUrl(theme) {
     if (theme === 'light') {
         return false; // light theme is always loaded as baseline
-    }
-
-    if (theme === 'dark') {
+    } else if (theme === 'dark') {
         return `${assetPath}/stylesheets/theme-dark.css`;
-    }
-    else {
+    } else {
         const themeNote = attributeService.getNoteWithLabel('appTheme', theme);
 
         if (themeNote) {
             return `api/notes/download/${themeNote.noteId}`;
-        }
-        else {
+        } else {
             return false; // baseline light theme
         }
     }

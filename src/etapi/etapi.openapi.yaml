@@ -127,7 +127,8 @@ paths:
             - targetRelationCount
             - targetRelationCountIncludingLinks
             - contentSize
-            - noteSize
+            - contentAndAttachmentsSize
+            - contentAndAttachmentsAndRevisionsSize
             - revisionCount
         - name: orderDirection
           in: query
@@ -231,7 +232,7 @@ paths:
         schema:
           $ref: '#/components/schemas/EntityId'
     get:
-      description: Returns note content idenfied by its ID
+      description: Returns note content identified by its ID
       operationId: getNoteContent
       responses:
         '200':
@@ -241,7 +242,7 @@ paths:
               schema:
                 type: string
     put:
-      description: Updates note content idenfied by its ID
+      description: Updates note content identified by its ID
       operationId: putNoteContentById
       requestBody:
         description: html content of note
@@ -308,7 +309,7 @@ paths:
             application/json; charset=utf-8:
               schema:
                 $ref: '#/components/schemas/Error'
-  /notes/{noteId}/note-revision:
+  /notes/{noteId}/revision:
     parameters:
       - name: noteId
         in: path
@@ -325,7 +326,7 @@ paths:
           default: html
     post:
       description: Create a note revision for the given note
-      operationId: createNoteRevision
+      operationId: createRevision
       responses:
         '204':
           description: revision has been created
@@ -802,6 +803,12 @@ components:
         branchId:
           $ref: '#/components/schemas/EntityId'
           description: DON'T specify unless you want to force a specific branchId
+        dateCreated:
+          $ref: '#/components/schemas/LocalDateTime'
+          description: Local timestap of the note creation. Specify only if you want to override the default (current datetime in the current timezone/offset).
+        utcDateCreated:
+          $ref: '#/components/schemas/UtcDateTime'
+          description: UTC timestap of the note creation. Specify only if you want to override the default (current datetime).
     Note:
       type: object
       properties:
@@ -818,6 +825,9 @@ components:
         isProtected:
           type: boolean
           readOnly: true
+        blobId:
+          type: string
+          description: ID of the blob object which effectively serves as a content hash
         attributes:
           $ref: '#/components/schemas/AttributeList'
           readOnly: true
@@ -835,13 +845,11 @@ components:
           readOnly: true
         dateCreated:
           $ref: '#/components/schemas/LocalDateTime'
-          readOnly: true
         dateModified:
           $ref: '#/components/schemas/LocalDateTime'
           readOnly: true
         utcDateCreated:
           $ref: '#/components/schemas/UtcDateTime'
-          readOnly: true
         utcDateModified:
           $ref: '#/components/schemas/UtcDateTime'
           readOnly: true
@@ -934,11 +942,11 @@ components:
     LocalDateTime:
       type: string
       pattern: '[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{3}[\+\-][0-9]{4}'
-      example: 2021-12-31 20:18:11.939+0100
+      example: 2021-12-31 20:18:11.930+0100
     UtcDateTime:
       type: string
       pattern: '[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{3}Z'
-      example: 2021-12-31 19:18:11.939Z
+      example: 2021-12-31 19:18:11.930Z
     AppInfo:
       type: object
       properties:

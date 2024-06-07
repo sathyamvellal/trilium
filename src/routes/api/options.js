@@ -5,11 +5,11 @@ const log = require('../../services/log');
 const searchService = require('../../services/search/services/search');
 const ValidationError = require("../../errors/validation_error");
 
-// options allowed to be updated directly in options dialog
+// options allowed to be updated directly in the Options dialog
 const ALLOWED_OPTIONS = new Set([
     'eraseEntitiesAfterTimeInSeconds',
     'protectedSessionTimeout',
-    'noteRevisionSnapshotTimeInterval',
+    'revisionSnapshotTimeInterval',
     'zoomFactor',
     'theme',
     'syncServerHost',
@@ -24,15 +24,7 @@ const ALLOWED_OPTIONS = new Set([
     'detailFontFamily',
     'monospaceFontSize',
     'monospaceFontFamily',
-    'openTabs',
-    'noteInfoWidget',
-    'attributesWidget',
-    'linkMapWidget',
-    'noteRevisionsWidget',
-    'whatLinksHereWidget',
-    'similarNotesWidget',
-    'editedNotesWidget',
-    'calendarWidget',
+    'openNoteContexts',
     'vimKeymapEnabled',
     'codeLineWrapEnabled',
     'codeNotesMimeTypes',
@@ -47,9 +39,6 @@ const ALLOWED_OPTIONS = new Set([
     'noteContentMaximized',
     'tabRowVisible',
     'nativeTitleBarVisible',
-    'attributeListExpanded',
-    'promotedAttributesExpanded',
-    'similarNotesExpanded',
     'headingStyle',
     'autoCollapseNoteTree',
     'autoReadonlySizeText',
@@ -62,14 +51,19 @@ const ALLOWED_OPTIONS = new Set([
     'compressImages',
     'downloadImagesAutomatically',
     'minTocHeadings',
+    'highlightsList',
     'checkForUpdates',
+    'disableTray',
+    'eraseUnusedAttachmentsAfterSeconds',
     'disableTray',
     'customSearchEngineName',
     'customSearchEngineUrl',
+    'promotedAttributesOpenInRibbon',
+    'editedNotesOpenInRibbon'
 ]);
 
 function getOptions() {
-    const optionMap = optionService.getOptionsMap();
+    const optionMap = optionService.getOptionMap();
     const resultMap = {};
 
     for (const optionName in optionMap) {
@@ -96,7 +90,7 @@ function updateOptions(req) {
         if (!update(optionName, req.body[optionName])) {
             // this should be improved
             // it should return 400 instead of current 500, but at least it now rollbacks transaction
-            throw new Error(`${optionName} is not allowed to change`);
+            throw new Error(`Option '${optionName}' is not allowed to be changed`);
         }
     }
 }
@@ -106,8 +100,8 @@ function update(name, value) {
         return false;
     }
 
-    if (name !== 'openTabs') {
-        log.info(`Updating option ${name} to ${value}`);
+    if (name !== 'openNoteContexts') {
+        log.info(`Updating option '${name}' to '${value}'`);
     }
 
     optionService.setOption(name, value);
@@ -140,8 +134,7 @@ function isAllowed(name) {
     return ALLOWED_OPTIONS.has(name)
         || name.startsWith("keyboardShortcuts")
         || name.endsWith("Collapsed")
-        || name.startsWith("hideArchivedNotes")
-        || name.startsWith("hideIncludedImages");
+        || name.startsWith("hideArchivedNotes");
 }
 
 module.exports = {

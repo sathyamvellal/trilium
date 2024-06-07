@@ -56,14 +56,14 @@ function getAndClearEntityChangeIds() {
     return entityChangeIds;
 }
 
-function addEntityChange(entityChange) {
+function putEntityChange(entityChange) {
     if (namespace.get('ignoreEntityChangeIds')) {
         return;
     }
 
     const entityChangeIds = namespace.get('entityChangeIds') || [];
 
-    // store only ID since the record can be modified (e.g. in erase)
+    // store only ID since the record can be modified (e.g., in erase)
     entityChangeIds.push(entityChange.id);
 
     namespace.set('entityChangeIds', entityChangeIds);
@@ -91,6 +91,6 @@ module.exports = {
     isEntityEventsDisabled,
     reset,
     getAndClearEntityChangeIds,
-    addEntityChange,
+    putEntityChange,
     ignoreEntityChangeIds,
 };

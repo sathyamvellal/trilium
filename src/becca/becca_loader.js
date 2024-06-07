@@ -27,10 +27,10 @@ function load() {
     const start = Date.now();
     becca.reset();
 
-    // using raw query and passing arrays to avoid allocating new objects
-    // this is worth it for becca load since it happens every run and blocks the app until finished
+    // using a raw query and passing arrays to avoid allocating new objects,
+    // this is worth it for the becca load since it happens every run and blocks the app until finished
 
-    for (const row of sql.getRawRows(`SELECT noteId, title, type, mime, isProtected, dateCreated, dateModified, utcDateCreated, utcDateModified FROM notes WHERE isDeleted = 0`)) {
+    for (const row of sql.getRawRows(`SELECT noteId, title, type, mime, isProtected, blobId, dateCreated, dateModified, utcDateCreated, utcDateModified FROM notes WHERE isDeleted = 0`)) {
         new BNote().update(row).init();
     }
 
@@ -63,10 +63,10 @@ function load() {
     log.info(`Becca (note cache) load took ${Date.now() - start}ms`);
 }
 
-function reload() {
+function reload(reason) {
     load();
 
-    require('../services/ws').reloadFrontend();
+    require('../services/ws').reloadFrontend(reason || "becca reloaded");
 }
 
 eventService.subscribeBeccaLoader([eventService.ENTITY_CHANGE_SYNCED],  ({entityName, entityRow}) => {
@@ -105,7 +105,7 @@ eventService.subscribeBeccaLoader(eventService.ENTITY_CHANGED,  ({entityName, en
  *
  * @param entityName
  * @param entityRow - can be a becca entity (change comes from this trilium instance) or just a row (from sync).
- *                    Should be therefore treated as a row.
+ *                    It should be therefore treated as a row.
  */
 function postProcessEntityUpdate(entityName, entityRow) {
     if (entityName === 'notes') {
@@ -188,7 +188,7 @@ function branchUpdated(branchRow) {
         childNote.sortParents();
 
         // notes in the subtree can get new inherited attributes
-        // this is in theory needed upon branch creation, but there's no create event for sync changes
+        // this is in theory needed upon branch creation, but there's no "create" event for sync changes
         childNote.invalidateSubTree();
     }
 

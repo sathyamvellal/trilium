@@ -21,7 +21,7 @@ function getNotesWithLabel(name, value = undefined) {
 // TODO: should be in search service
 /** @returns {BNote|null} */
 function getNoteWithLabel(name, value = undefined) {
-    // optimized version (~20 times faster) without using normal search, useful for e.g. finding date notes
+    // optimized version (~20 times faster) without using normal search, useful for e.g., finding date notes
     const attrs = becca.findAttributes('label', name);
 
     if (value === undefined) {
@@ -37,24 +37,6 @@ function getNoteWithLabel(name, value = undefined) {
     }
 
     return null;
-}
-
-/**
- * Does not take into account templates and inheritance
- */
-function getNotesWithLabelFast(name, value) {
-    // optimized version (~20 times faster) without using normal search, useful for e.g. finding date notes
-    const attrs = becca.findAttributes('label', name);
-
-    if (value === undefined) {
-        return attrs.map(attr => attr.getNote());
-    }
-
-    value = value?.toLowerCase();
-
-    return attrs
-        .filter(attr => attr.value.toLowerCase() === value)
-        .map(attr => attr.getNote());
 }
 
 function createLabel(noteId, name, value = "") {
@@ -130,7 +112,6 @@ function isAttributeDangerous(type, name) {
 
 module.exports = {
     getNotesWithLabel,
-    getNotesWithLabelFast,
     getNoteWithLabel,
     createLabel,
     createRelation,

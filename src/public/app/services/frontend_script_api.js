@@ -15,6 +15,7 @@ import NoteContextAwareWidget from "../widgets/note_context_aware_widget.js";
 import BasicWidget from "../widgets/basic_widget.js";
 import SpacedUpdate from "./spaced_update.js";
 import shortcutService from "./shortcuts.js";
+import dialogService from "./dialog.js";
 
 /**
  * <p>This is the main frontend API interface for scripts. All the properties and methods are published in the "api" object
@@ -26,9 +27,9 @@ function FrontendScriptApi(startNote, currentNote, originEntity = null, $contain
     /** @property {jQuery} container of all the rendered script content */
     this.$container = $container;
 
-    /** @property {object} note where script started executing */
+    /** @property {object} note where the script started executing */
     this.startNote = startNote;
-    /** @property {object} note where script is currently executing */
+    /** @property {object} note where the script is currently executing */
     this.currentNote = currentNote;
     /** @property {object|null} entity whose event triggered this execution */
     this.originEntity = originEntity;
@@ -80,7 +81,7 @@ function FrontendScriptApi(startNote, currentNote, originEntity = null, $contain
     this.openTabWithNote = async (notePath, activate) => {
         await ws.waitForMaxKnownEntityChangeId();
 
-        await appContext.tabManager.openContextWithNote(notePath, { activate });
+        await appContext.tabManager.openTabWithNoteWithHoisting(notePath, { activate });
 
         if (activate) {
             await appContext.triggerEvent('focusAndSelectTitle');
@@ -165,7 +166,7 @@ function FrontendScriptApi(startNote, currentNote, originEntity = null, $contain
             params: prepareParams(params),
             startNoteId: startNote.noteId,
             currentNoteId: currentNote.noteId,
-            originEntityName: "notes", // currently there's no other entity on frontend which can trigger event
+            originEntityName: "notes", // currently there's no other entity on the frontend which can trigger event
             originEntityId: originEntity ? originEntity.noteId : null
         }, "script");
 
@@ -206,7 +207,7 @@ function FrontendScriptApi(startNote, currentNote, originEntity = null, $contain
     };
 
     /**
-     * Returns note by given noteId. If note is missing from cache, it's loaded.
+     * Returns note by given noteId. If note is missing from the cache, it's loaded.
      **
      * @method
      * @param {string} noteId
@@ -215,10 +216,10 @@ function FrontendScriptApi(startNote, currentNote, originEntity = null, $contain
     this.getNote = async noteId => await froca.getNote(noteId);
 
     /**
-     * Returns list of notes. If note is missing from cache, it's loaded.
+     * Returns list of notes. If note is missing from the cache, it's loaded.
      *
      * This is often used to bulk-fill the cache with notes which would have to be picked one by one
-     * otherwise (by e.g. createNoteLink())
+     * otherwise (by e.g. createLink())
      *
      * @method
      * @param {string[]} noteIds
@@ -259,7 +260,7 @@ function FrontendScriptApi(startNote, currentNote, originEntity = null, $contain
     this.parseDate = utils.parseDate;
 
     /**
-     * Show info message to the user.
+     * Show an info toast message to the user.
      *
      * @method
      * @param {string} message
@@ -267,7 +268,7 @@ function FrontendScriptApi(startNote, currentNote, originEntity = null, $contain
     this.showMessage = toastService.showMessage;
 
     /**
-     * Show error message to the user.
+     * Show an error toast message to the user.
      *
      * @method
      * @param {string} message
@@ -275,7 +276,37 @@ function FrontendScriptApi(startNote, currentNote, originEntity = null, $contain
     this.showError = toastService.showError;
 
     /**
-     * Trigger command.
+     * Show an info dialog to the user.
+     *
+     * @method
+     * @param {string} message
+     * @returns {Promise}
+     */
+    this.showInfoDialog = dialogService.info;
+
+    /**
+     * Show confirm dialog to the user.
+     *
+     * @method
+     * @param {string} message
+     * @returns {Promise<boolean>} promise resolving to true if the user confirmed
+     */
+    this.showConfirmDialog = dialogService.confirm;
+
+    /**
+     * Show prompt dialog to the user.
+     *
+     * @method
+     * @param {object} props
+     * @param {string} props.title
+     * @param {string} props.message
+     * @param {string} props.defaultValue
+     * @returns {Promise<string>} promise resolving to the answer provided by the user
+     */
+    this.showPromptDialog = dialogService.prompt;
+
+    /**
+     * Trigger command. This is a very low-level API which should be avoided if possible.
      *
      * @method
      * @param {string} name
@@ -284,7 +315,7 @@ function FrontendScriptApi(startNote, currentNote, originEntity = null, $contain
     this.triggerCommand = (name, data) => appContext.triggerCommand(name, data);
 
     /**
-     * Trigger event.
+     * Trigger event. This is a very low-level API which should be avoided if possible.
      *
      * @method
      * @param {string} name
@@ -293,7 +324,7 @@ function FrontendScriptApi(startNote, currentNote, originEntity = null, $contain
     this.triggerEvent = (name, data) => appContext.triggerEvent(name, data);
 
     /**
-     * Create note link (jQuery object) for given note.
+     * Create a note link (jQuery object) for given note.
      *
      * @method
      * @param {string} notePath (or noteId)
@@ -302,8 +333,12 @@ function FrontendScriptApi(startNote, currentNote, originEntity = null, $contain
      * @param {boolean} [params.showNotePath=false] - show also whole note's path as part of the link
      * @param {boolean} [params.showNoteIcon=false] - show also note icon before the title
      * @param {string} [params.title=] - custom link tile with note's title as default
+     * @returns {jQuery} - jQuery element with the link (wrapped in <span>)
      */
-    this.createNoteLink = linkService.createNoteLink;
+    this.createLink = linkService.createLink;
+
+    /** @deprecated - use api.createLink() instead */
+    this.createNoteLink = linkService.createLink;
 
     /**
      * Adds given text to the editor cursor
@@ -320,10 +355,10 @@ function FrontendScriptApi(startNote, currentNote, originEntity = null, $contain
     this.getActiveContextNote = () => appContext.tabManager.getActiveContextNote();
 
     /**
-     * See https://ckeditor.com/docs/ckeditor5/latest/api/module_core_editor_editor-Editor.html for a documentation on the returned instance.
+     * See https://ckeditor.com/docs/ckeditor5/latest/api/module_core_editor_editor-Editor.html for documentation on the returned instance.
      *
      * @method
-     * @returns {Promise<CKEditor>} instance of CKEditor
+     * @returns {Promise<BalloonEditor>} instance of CKEditor
      */
     this.getActiveContextTextEditor = () => appContext.tabManager.getActiveContext()?.getTextEditor();
 
@@ -346,12 +381,12 @@ function FrontendScriptApi(startNote, currentNote, originEntity = null, $contain
 
     /**
      * @method
-     * @returns {Promise<string|null>} returns note path of active note or null if there isn't active note
+     * @returns {Promise<string|null>} returns a note path of active note or null if there isn't active note
      */
     this.getActiveContextNotePath = () => appContext.tabManager.getActiveContextNotePath();
 
     /**
-     * Returns component which owns given DOM element (the nearest parent component in DOM tree)
+     * Returns component which owns the given DOM element (the nearest parent component in DOM tree)
      *
      * @method
      * @param {Element} el - DOM element
@@ -496,11 +531,11 @@ function FrontendScriptApi(startNote, currentNote, originEntity = null, $contain
     this.bindGlobalShortcut = shortcutService.bindGlobalShortcut;
 
     /**
-     * Trilium runs in backend and frontend process, when something is changed on the backend from script,
+     * Trilium runs in a backend and frontend process, when something is changed on the backend from a script,
      * frontend will get asynchronously synchronized.
      *
      * This method returns a promise which resolves once all the backend -> frontend synchronization is finished.
-     * Typical use case is when new note has been created, we should wait until it is synced into frontend and only then activate it.
+     * Typical use case is when a new note has been created, we should wait until it is synced into frontend and only then activate it.
      *
      * @method
      * @returns {Promise<void>}
@@ -519,7 +554,7 @@ function FrontendScriptApi(startNote, currentNote, originEntity = null, $contain
      * Return randomly generated string of given length. This random string generation is NOT cryptographically secure.
      *
      * @method
-     * @param {number} length of the string
+     * @param {int} length of the string
      * @returns {string} random string
      */
     this.randomString = utils.randomString;
@@ -529,7 +564,15 @@ function FrontendScriptApi(startNote, currentNote, originEntity = null, $contain
      * @param {int} size in bytes
      * @return {string} formatted string
      */
-    this.formatNoteSize = utils.formatNoteSize;
+    this.formatSize = utils.formatSize;
+
+    /**
+     * @method
+     * @param {int} size in bytes
+     * @return {string} formatted string
+     * @deprecated - use api.formatSize()
+     */
+    this.formatNoteSize = utils.formatSize;
 
     this.logMessages = {};
     this.logSpacedUpdates = {};

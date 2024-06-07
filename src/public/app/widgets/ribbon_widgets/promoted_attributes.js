@@ -4,6 +4,7 @@ import treeService from "../../services/tree.js";
 import noteAutocompleteService from "../../services/note_autocomplete.js";
 import NoteContextAwareWidget from "../note_context_aware_widget.js";
 import attributeService from "../../services/attributes.js";
+import options from "../../services/options.js";
 
 const TPL = `
 <div>
@@ -62,7 +63,7 @@ export default class PromotedAttributesWidget extends NoteContextAwareWidget {
 
         return {
             show: true,
-            activate: true,
+            activate: options.is('promotedAttributesOpenInRibbon'),
             title: "Promoted Attributes",
             icon: "bx bx-table"
         };
@@ -73,6 +74,10 @@ export default class PromotedAttributesWidget extends NoteContextAwareWidget {
 
         const promotedDefAttrs = note.getPromotedDefinitionAttributes();
         const ownedAttributes = note.getOwnedAttributes();
+        // attrs are not resorted if position changes after the initial load
+        // promoted attrs are sorted primarily by order of definitions, but with multi-valued promoted attrs
+        // the order of attributes is important as well
+        ownedAttributes.sort((a, b) => a.position < b.position ? -1 : 1);
 
         if (promotedDefAttrs.length === 0) {
             this.toggleInt(false);
@@ -107,7 +112,7 @@ export default class PromotedAttributesWidget extends NoteContextAwareWidget {
             }
         }
 
-        // we replace the whole content in one step so there can't be any race conditions
+        // we replace the whole content in one step, so there can't be any race conditions
         // (previously we saw promoted attributes doubling)
         this.$container.empty().append(...$cells);
         this.toggleInt(true);
@@ -142,7 +147,7 @@ export default class PromotedAttributesWidget extends NoteContextAwareWidget {
                 $input.prop("type", "text");
 
                 // no need to await for this, can be done asynchronously
-                server.get(`attributes/values/${encodeURIComponent(valueAttr.name)}`).then(attributeValues => {
+                server.get(`attribute-values/${encodeURIComponent(valueAttr.name)}`).then(attributeValues => {
                     if (attributeValues.length === 0) {
                         return;
                     }
@@ -196,6 +201,9 @@ export default class PromotedAttributesWidget extends NoteContextAwareWidget {
             }
             else if (definition.labelType === 'date') {
                 $input.prop("type", "date");
+            }
+            else if (definition.labelType === 'datetime') {
+                $input.prop('type', 'datetime-local')
             }
             else if (definition.labelType === 'url') {
                 $input.prop("placeholder", "http://website...");
@@ -297,7 +305,7 @@ export default class PromotedAttributesWidget extends NoteContextAwareWidget {
         else if ($attr.attr("data-attribute-type") === "relation") {
             const selectedPath = $attr.getSelectedNotePath();
 
-            value = selectedPath ? treeService.getNoteIdFromNotePath(selectedPath) : "";
+            value = selectedPath ? treeService.getNoteIdFromUrl(selectedPath) : "";
         }
         else {
             value = $attr.val();
@@ -318,7 +326,7 @@ export default class PromotedAttributesWidget extends NoteContextAwareWidget {
     }
 
     entitiesReloadedEvent({loadResults}) {
-        if (loadResults.getAttributes(this.componentId).find(attr => attributeService.isAffecting(attr, this.note))) {
+        if (loadResults.getAttributeRows(this.componentId).find(attr => attributeService.isAffecting(attr, this.note))) {
             this.refresh();
         }
     }

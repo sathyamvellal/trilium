@@ -110,13 +110,17 @@ button.close:hover {
 .icon-action {
     border: 1px solid transparent;
     padding: 5px;
-    width: 35px;
+    width: 37px;
     height: 35px;
     cursor: pointer;
     font-size: 1.5em;
     color: var(--button-text-color);
     background: var(--button-background-color);
     border-radius: var(--button-border-radius);
+}
+
+.icon-action-always-border {
+    border-color: var(--button-border-color);
 }
 
 .icon-action:hover:not(.disabled) {
@@ -189,6 +193,12 @@ div.ui-tooltip {
 .dropdown-menu .disabled {
     color: #888 !important;
     pointer-events: none;
+}
+
+.dropdown-menu .disabled .disabled-tooltip {
+    pointer-events: all;
+    color: var(--menu-text-color);
+    cursor: help;
 }
 
 .dropdown-menu a:hover:not(.disabled), .dropdown-item:hover:not(.disabled) {
@@ -461,7 +471,7 @@ table.promoted-attributes-in-tooltip td, table.promoted-attributes-in-tooltip th
 .note-tooltip-content {
     /* height needs to stay small because tooltip has problem when it can't fit to either top or bottom of the cursor */
     max-height: 300px;
-    overflow: hidden;
+    overflow: auto;
 }
 
 .note-tooltip-content .note-title-with-path .note-path {
@@ -712,25 +722,26 @@ a.external:not(.no-arrow):after, a[href^="http://"]:not(.no-arrow):after, a[href
     content: '' !important;
 }
 
-.include-note.box-size-small .include-note-content {
+/* Using data- attribute to support both CKEditor and readonly view */
+.include-note[data-box-size=small] .include-note-content {
     max-height: 10em;
     overflow: auto;
 }
 
-.include-note.box-size-small .include-note-content.type-pdf {
+.include-note[data-box-size=small] .include-note-content.type-pdf {
     height: 10em; /* PDF is rendered in iframe and must be sized absolutely */
 }
 
-.include-note.box-size-medium .include-note-content {
+.include-note[data-box-size=medium] .include-note-content {
     max-height: 20em;
     overflow: auto;
 }
 
-.include-note.box-size-medium .include-note-content.type-pdf .rendered-note-content {
+.include-note[data-box-size=medium] .include-note-content.type-pdf .rendered-content {
     height: 20em; /* PDF is rendered in iframe and must be sized absolutely */
 }
 
-.include-note.box-size-full .include-note-content.type-pdf .rendered-note-content {
+.include-note[data-box-size=full] .include-note-content.type-pdf .rendered-content {
     height: 50em; /* PDF is rendered in iframe and it's not possible to put full height so at least a large height */
 }
 
@@ -810,7 +821,7 @@ li.dropdown-submenu:hover > ul.dropdown-menu {
 
 body {
     /* FF basic styling */
-    scrollbar-color: var(--active-item-background-color) var(--main-background-color);
+    scrollbar-color: var(--scrollbar-background-color) var(--main-background-color);
 }
 
 ::-webkit-scrollbar {
@@ -818,9 +829,9 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-    border-radius: 3px;
+    border-radius: 5px;
     border: 1px solid var(--scrollbar-border-color);
-    background-color: var(--active-item-background-color);
+    background-color: var(--scrollbar-background-color);
 }
 
 ::-webkit-scrollbar-corner {
@@ -944,6 +955,8 @@ input {
     display: flex;
     flex-shrink: 0;
     flex-direction: column;
+    margin-left: 10px;
+    margin-right: 5px;
 }
 
 #right-pane .card-header {
@@ -1015,13 +1028,20 @@ button.close:hover {
 }
 
 .options-section h4 {
-    margin-top: 15px;
+    margin-top: 25px;
     margin-bottom: 15px;
 }
 
 .options-section h5 {
     margin-top: 10px;
     margin-bottom: 10px;
+}
+
+.options-number-input {
+    text-align: right;
+    /* overriding settings from .form-control */
+    width: 10em !important;
+    flex-grow: 0 !important;
 }
 
 textarea {
@@ -1032,4 +1052,19 @@ textarea {
 .table td, .table th {
     /* Fix center vertical alignment of table cells */
     vertical-align: middle;
+}
+
+.ck-powered-by-balloon {
+    display: none !important;
+}
+
+.attachment-help-button {
+    font-size: xx-large;
+    border: 0;
+    background: none;
+    cursor: pointer;
+    color: var(--main-text-color);
+    margin-left: 20px;
+    position: relative;
+    top: 8px;
 }

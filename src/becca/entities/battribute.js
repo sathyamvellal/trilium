@@ -141,7 +141,7 @@ class BAttribute extends AbstractBeccaEntity {
      */
     getTargetNote() {
         if (this.type !== 'relation') {
-            throw new Error(`Attribute ${this.attributeId} is not relation`);
+            throw new Error(`Attribute '${this.attributeId}' is not a relation.`);
         }
 
         if (!this.value) {
@@ -188,9 +188,11 @@ class BAttribute extends AbstractBeccaEntity {
             this.value = "";
         }
 
-        if (this.position === undefined) {
-            // TODO: can be calculated from becca
-            this.position = 1 + sql.getValue(`SELECT COALESCE(MAX(position), 0) FROM attributes WHERE noteId = ?`, [this.noteId]);
+        if (this.position === undefined || this.position === null) {
+            const maxExistingPosition = this.getNote().getAttributes()
+                .reduce((maxPosition, attr) => Math.max(maxPosition, attr.position || 0), 0);
+
+            this.position = maxExistingPosition + 10;
         }
 
         if (!this.isInheritable) {
