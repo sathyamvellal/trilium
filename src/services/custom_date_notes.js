@@ -197,7 +197,7 @@ function getWeekNoteTitle(weekNoteTitlePattern, rootNote, dayNumber, dateObj) {
     const monthNumber = dateUtils.utcDateStr(dateObj).substr(5, 2);
 
     return pattern
-        .replace(/{weekNumber}/g, getWeekNumber(new Date()))
+        .replace(/{weekNumber}/g, getWeekNumber(dateObj))
         .replace(/{monthNumberPadded}/g, monthNumber)
         .replace(/{dayInMonthPadded}/g, dayNumber);
 }
