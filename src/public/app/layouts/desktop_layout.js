@@ -79,11 +79,6 @@ import ScriptExecutorWidget from "../widgets/ribbon_widgets/script_executor.js";
 import MovePaneButton from "../widgets/buttons/move_pane_button.js";
 import UploadAttachmentsDialog from "../widgets/dialogs/upload_attachments.js";
 import CopyImageReferenceButton from "../widgets/floating_buttons/copy_image_reference_button.js";
-import ScrollPaddingWidget from "../widgets/scroll_padding.js";
-
-// Custom imports
-import TitleRowContainer from "../widgets/containers/title_row_container.js";
-import RibbonRowContainer from "../widgets/containers/ribbon_row_container.js";
 
 export default class DesktopLayout {
     constructor(customWidgets) {
@@ -180,7 +175,6 @@ export default class DesktopLayout {
                                             .child(new NoteListWidget())
                                             .child(new SearchResultWidget())
                                             .child(new SqlResultWidget())
-                                            .child(new ScrollPaddingWidget())
                                     )
                                     .child(new ApiLogWidget())
                                     .child(new FindWidget())
