@@ -18,6 +18,21 @@ const LABEL = 'label';
 const RELATION = 'relation';
 
 /**
+ * There are many different Note types, some of which are entirely opaque to the
+ * end user. Those types should be used only for checking against, they are
+ * not for direct use.
+ * @typedef {"file" | "image" | "search" | "noteMap" | "launcher" | "doc" | "contentWidget" | "text" | "relationMap" | "render" | "canvas" | "mermaid" | "book" | "webView" | "code"} NoteType
+ */
+
+/**
+ * @typedef {Object} NotePathRecord
+ * @property {boolean} isArchived
+ * @property {boolean} isInHoistedSubTree
+ * @property {Array<string>} notePath
+ * @property {boolean} isHidden
+ */
+
+/**
  * Trilium's main entity, which can represent text note, image, code note, file attachment etc.
  *
  * @extends AbstractBeccaEntity
@@ -60,7 +75,7 @@ class BNote extends AbstractBeccaEntity {
         this.noteId = noteId;
         /** @type {string} */
         this.title = title;
-        /** @type {string} */
+        /** @type {NoteType} */
         this.type = type;
         /** @type {string} */
         this.mime = mime;
@@ -76,7 +91,10 @@ class BNote extends AbstractBeccaEntity {
         this.utcDateCreated = utcDateCreated || dateUtils.utcNowDateTime();
         /** @type {string} */
         this.utcDateModified = utcDateModified;
-        /** @type {boolean} - set during the deletion operation, before it is completed (removed from becca completely) */
+        /**
+         * set during the deletion operation, before it is completed (removed from becca completely)
+         * @type {boolean}
+         */
         this.isBeingDeleted = false;
 
         // ------ Derived attributes ------
@@ -738,7 +756,7 @@ class BNote extends AbstractBeccaEntity {
             } else if (a.parentNote?.isHiddenCompletely()) {
                 return 1;
             } else {
-                return -1;
+                return 0;
             }
         });
 
@@ -758,7 +776,7 @@ class BNote extends AbstractBeccaEntity {
             const aBranch = becca.getBranchFromChildAndParent(a.noteId, this.noteId);
             const bBranch = becca.getBranchFromChildAndParent(b.noteId, this.noteId);
 
-            return aBranch?.notePosition < bBranch?.notePosition ? -1 : 1;
+            return (aBranch?.notePosition - bBranch?.notePosition) || 0;
         });
     }
 
@@ -1156,14 +1174,8 @@ class BNote extends AbstractBeccaEntity {
 
     /** @returns {BAttachment} */
     getAttachmentByTitle(title) {
-        return sql.getRows(`
-                SELECT attachments.*
-                FROM attachments 
-                WHERE ownerId = ? 
-                  AND title = ?
-                  AND isDeleted = 0
-                ORDER BY position`, [this.noteId, title])
-            .map(row => new BAttachment(row))[0];
+        // cannot use SQL to filter by title since it can be encrypted
+        return this.getAttachments().filter(attachment => attachment.title === title)[0];
     }
 
     /**
@@ -1191,7 +1203,7 @@ class BNote extends AbstractBeccaEntity {
 
     /**
      * @param {string} [hoistedNoteId='root']
-     * @return {Array<{isArchived: boolean, isInHoistedSubTree: boolean, notePath: Array<string>, isHidden: boolean}>}
+     * @return {Array<NotePathRecord>}
      */
     getSortedNotePathRecords(hoistedNoteId = 'root') {
         const isHoistedRoot = hoistedNoteId === 'root';

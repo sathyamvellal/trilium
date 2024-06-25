@@ -45,8 +45,10 @@ module.exports = [
     { type: 'label', name: 'sortNatural' },
     { type: 'label', name: 'sortLocale' },
     { type: 'label', name: 'top' },
+    { type: 'label', name: 'bottom' },
     { type: 'label', name: 'fullContentWidth' },
     { type: 'label', name: 'shareHiddenFromTree' },
+    { type: 'label', name: 'shareExternalLink' },
     { type: 'label', name: 'shareAlias' },
     { type: 'label', name: 'shareOmitDefaultCss' },
     { type: 'label', name: 'shareRoot' },
@@ -67,6 +69,7 @@ module.exports = [
     { type: 'label', name: 'newNotesOnTop'},
     { type: 'label', name: 'clipperInbox'},
     { type: 'label', name: 'webViewSrc', isDangerous: true },
+    { type: 'label', name: 'hideHighlightWidget' },
 
     // relation names
     { type: 'relation', name: 'internalLink' },
@@ -79,6 +82,7 @@ module.exports = [
     { type: 'relation', name: 'runOnNoteContentChange', isDangerous: true },
     { type: 'relation', name: 'runOnNoteDeletion', isDangerous: true },
     { type: 'relation', name: 'runOnBranchCreation', isDangerous: true },
+    { type: 'relation', name: 'runOnBranchChange', isDangerous: true },
     { type: 'relation', name: 'runOnBranchDeletion', isDangerous: true },
     { type: 'relation', name: 'runOnChildNoteCreation', isDangerous: true },
     { type: 'relation', name: 'runOnAttributeCreation', isDangerous: true },
@@ -89,5 +93,6 @@ module.exports = [
     { type: 'relation', name: 'renderNote', isDangerous: true },
     { type: 'relation', name: 'shareCss' },
     { type: 'relation', name: 'shareJs' },
+    { type: 'relation', name: 'shareTemplate' },
     { type: 'relation', name: 'shareFavicon' },
 ];

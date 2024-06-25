@@ -8,7 +8,7 @@ const becca = require('../becca/becca');
 
 function validateParentChild(parentNoteId, childNoteId, branchId = null) {
     if (['root', '_hidden', '_share', '_lbRoot', '_lbAvailableLaunchers', '_lbVisibleLaunchers'].includes(childNoteId)) {
-        return { branch: null, success: false, message: `Cannot change this note's location.`};
+        return { branch: null, success: false, message: `Cannot change this note's location.` };
     }
 
     if (parentNoteId === 'none') {
@@ -16,14 +16,14 @@ function validateParentChild(parentNoteId, childNoteId, branchId = null) {
         return { branch: null, success: false, message: `Cannot move anything into 'none' parent.` };
     }
 
-    const existing = becca.getBranchFromChildAndParent(childNoteId, parentNoteId);
+    const existingBranch = becca.getBranchFromChildAndParent(childNoteId, parentNoteId);
 
-    if (existing && (branchId === null || existing.branchId !== branchId)) {
+    if (existingBranch && existingBranch.branchId !== branchId) {
         const parentNote = becca.getNote(parentNoteId);
         const childNote = becca.getNote(childNoteId);
 
         return {
-            branch: existing,
+            branch: existingBranch,
             success: false,
             message: `Note "${childNote.title}" note already exists in the "${parentNote.title}".`
         };
@@ -52,6 +52,10 @@ function validateParentChild(parentNoteId, childNoteId, branchId = null) {
  * Tree cycle can be created when cloning or when moving existing clone. This method should detect both cases.
  */
 function wouldAddingBranchCreateCycle(parentNoteId, childNoteId) {
+    if (parentNoteId === childNoteId) {
+        return true;
+    }
+
     const childNote = becca.getNote(childNoteId);
     const parentNote = becca.getNote(parentNoteId);
 
@@ -124,6 +128,14 @@ function sortNotes(parentNoteId, customSortBy = 'title', reverse = false, folder
             if (topAEl !== topBEl) {
                 // since "top" should not be reversible, we'll reverse it once more to nullify this effect
                 return compare(topAEl, topBEl) * (reverse ? -1 : 1);
+            }
+
+            const bottomAEl = fetchValue(a, 'bottom');
+            const bottomBEl = fetchValue(b, 'bottom');
+
+            if (bottomAEl !== bottomBEl) {
+                // since "bottom" should not be reversible, we'll reverse it once more to nullify this effect
+                return compare(bottomBEl, bottomAEl) * (reverse ? -1 : 1);
             }
 
             const customAEl = fetchValue(a, customSortBy);

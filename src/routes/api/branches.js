@@ -10,6 +10,7 @@ const TaskContext = require('../../services/task_context');
 const branchService = require("../../services/branches");
 const log = require("../../services/log");
 const ValidationError = require("../../errors/validation_error");
+const eventService = require("../../services/events.js");
 
 /**
  * Code in this file deals with moving and cloning branches. The relationship between note and parent note is unique
@@ -19,14 +20,14 @@ const ValidationError = require("../../errors/validation_error");
 function moveBranchToParent(req) {
     const {branchId, parentBranchId} = req.params;
 
-    const parentBranch = becca.getBranch(parentBranchId);
     const branchToMove = becca.getBranch(branchId);
+    const targetParentBranch = becca.getBranch(parentBranchId);
 
-    if (!parentBranch || !branchToMove) {
+    if (!branchToMove || !targetParentBranch) {
         throw new ValidationError(`One or both branches '${branchId}', '${parentBranchId}' have not been found`);
     }
 
-    return branchService.moveBranchToBranch(branchToMove, parentBranch, branchId);
+    return branchService.moveBranchToBranch(branchToMove, targetParentBranch, branchId);
 }
 
 function moveBranchBeforeNote(req) {
@@ -144,6 +145,11 @@ function setExpanded(req) {
         if (branch) {
             branch.isExpanded = !!expanded;
         }
+
+        eventService.emit(eventService.ENTITY_CHANGED, {
+            entityName: 'branches',
+            entity: branch
+        });
     }
 }
 

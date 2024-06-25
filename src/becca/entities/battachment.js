@@ -37,7 +37,10 @@ class BAttachment extends AbstractBeccaEntity {
 
         /** @type {string} */
         this.attachmentId = row.attachmentId;
-        /** @type {string} either noteId or revisionId to which this attachment belongs */
+        /** 
+         * either noteId or revisionId to which this attachment belongs
+         * @type {string}
+         */
         this.ownerId = row.ownerId;
         /** @type {string} */
         this.role = row.role;
@@ -58,7 +61,10 @@ class BAttachment extends AbstractBeccaEntity {
         /** @type {string} */
         this.utcDateScheduledForErasureSince = row.utcDateScheduledForErasureSince;
 
-        /** @type {int} optionally added to the entity */
+        /**
+         * optionally added to the entity
+         * @type {int}
+         */
         this.contentLength = row.contentLength;
 
         this.decrypt();

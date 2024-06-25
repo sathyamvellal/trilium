@@ -26,7 +26,11 @@
     
     <section>
         <article>
-            <pre class="prettyprint source linenums"><code>class FAttachment {
+            <pre class="prettyprint source linenums"><code>/**
+ * Attachment is a file directly tied into a note without
+ * being a hidden child.
+ */
+class FAttachment {
     constructor(froca, row) {
         /** @type {Froca} */
         this.froca = froca;
@@ -52,7 +56,10 @@
         /** @type {string} */
         this.utcDateScheduledForErasureSince = row.utcDateScheduledForErasureSince;
 
-        /** @type {int} optionally added to the entity */
+        /**
+         * optionally added to the entity 
+         * @type {int}
+         */
         this.contentLength = row.contentLength;
 
         this.froca.attachments[this.attachmentId] = this;
@@ -80,7 +87,7 @@ export default FAttachment;
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="FAttribute.html">FAttribute</a></li><li><a href="FBranch.html">FBranch</a></li><li><a href="FNote.html">FNote</a></li><li><a href="FrontendScriptApi.html">FrontendScriptApi</a></li></ul><h3>Global</h3><ul><li><a href="global.html#getJsonContent">getJsonContent</a></li><li><a href="global.html#getJsonContentSafely">getJsonContentSafely</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="BasicWidget.html">BasicWidget</a></li><li><a href="FAttachment.html">FAttachment</a></li><li><a href="FAttribute.html">FAttribute</a></li><li><a href="FBranch.html">FBranch</a></li><li><a href="FNote.html">FNote</a></li><li><a href="FrontendScriptApi.html">FrontendScriptApi</a></li><li><a href="NoteContextAwareWidget.html">NoteContextAwareWidget</a></li><li><a href="RightPanelWidget.html">RightPanelWidget</a></li></ul><h3>Global</h3><ul><li><a href="global.html#api">api</a></li><li><a href="global.html#getJsonContent">getJsonContent</a></li><li><a href="global.html#getJsonContentSafely">getJsonContentSafely</a></li></ul>
 </nav>
 
 <br class="clear">

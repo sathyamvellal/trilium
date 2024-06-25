@@ -65,6 +65,12 @@ eventService.subscribe(eventService.ENTITY_CHANGED, ({entityName, entity}) => {
         if (parentNote?.hasLabel("sorted")) {
             treeService.sortNotesIfNeeded(parentNote.noteId);
         }
+
+        const childNote = becca.getNote(entity.noteId);
+
+        if (childNote) {
+            runAttachedRelations(childNote, 'runOnBranchChange', entity);
+        }
     }
 });
 
@@ -171,8 +177,15 @@ function handleMaybeSortingLabel(entity) {
     if (note) {
         for (const parentNote of note.getParentNotes()) {
             const sorted = parentNote.getLabelValue("sorted");
+            if (sorted === null) {
+                // checking specifically for null since that means the label doesn't exist
+                // empty valued "sorted" is still valid
+                continue;
+            }
 
-            if (sorted?.includes(entity.name)) { // hacky check if the sorting is affected by this label
+            if (sorted.includes(entity.name) // hacky check if this label is used in the sort
+                || entity.name === "top"
+                || entity.name === "bottom") {
                 treeService.sortNotesIfNeeded(parentNote.noteId);
             }
         }

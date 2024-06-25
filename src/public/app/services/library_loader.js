@@ -40,8 +40,10 @@ const PRINT_THIS = {js: ["libraries/printThis.js"]};
 const CALENDAR_WIDGET = {css: ["stylesheets/calendar.css"]};
 
 const KATEX = {
-    js: [ "libraries/katex/katex.min.js", "libraries/katex/mhchem.min.js", "libraries/katex/auto-render.min.js" ],
-    css: [ "libraries/katex/katex.min.css" ]
+    js: [ "node_modules/katex/dist/katex.min.js",
+        "node_modules/katex/dist/contrib/mhchem.min.js",
+        "node_modules/katex/dist/contrib/auto-render.min.js" ],
+    css: [ "node_modules/katex/dist/katex.min.css" ]
 };
 
 const WHEEL_ZOOM = {
