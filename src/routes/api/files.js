@@ -1,16 +1,16 @@
 "use strict";
 
-const protectedSessionService = require('../../services/protected_session');
-const utils = require('../../services/utils');
-const log = require('../../services/log');
-const noteService = require('../../services/notes');
+const protectedSessionService = require('../../services/protected_session.js');
+const utils = require('../../services/utils.js');
+const log = require('../../services/log.js');
+const noteService = require('../../services/notes.js');
 const tmp = require('tmp');
 const fs = require('fs');
 const { Readable } = require('stream');
 const chokidar = require('chokidar');
-const ws = require('../../services/ws');
-const becca = require("../../becca/becca");
-const ValidationError = require("../../errors/validation_error");
+const ws = require('../../services/ws.js');
+const becca = require('../../becca/becca.js');
+const ValidationError = require('../../errors/validation_error.js');
 
 function updateFile(req) {
     const note = becca.getNoteOrThrow(req.params.noteId);
@@ -154,11 +154,15 @@ function saveAttachmentToTmpDir(req) {
     return saveToTmpDir(fileName, content, 'attachments', attachment.attachmentId);
 }
 
+const createdTemporaryFiles = new Set();
+
 function saveToTmpDir(fileName, content, entityType, entityId) {
     const tmpObj = tmp.fileSync({ postfix: fileName });
 
     fs.writeSync(tmpObj.fd, content);
     fs.closeSync(tmpObj.fd);
+
+    createdTemporaryFiles.add(tmpObj.name);
 
     log.info(`Saved temporary file ${tmpObj.name}`);
 
@@ -182,6 +186,10 @@ function saveToTmpDir(fileName, content, entityType, entityId) {
 function uploadModifiedFileToNote(req) {
     const noteId = req.params.noteId;
     const {filePath} = req.body;
+
+    if (!createdTemporaryFiles.has(filePath)) {
+        throw new ValidationError(`File '${filePath}' is not a temporary file.`);
+    }
 
     const note = becca.getNoteOrThrow(noteId);
 

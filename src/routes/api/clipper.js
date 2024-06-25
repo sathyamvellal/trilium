@@ -1,18 +1,18 @@
 "use strict";
 
-const attributeService = require("../../services/attributes");
-const cloneService = require("../../services/cloning");
-const noteService = require('../../services/notes');
-const dateNoteService = require('../../services/date_notes');
-const dateUtils = require('../../services/date_utils');
-const imageService = require('../../services/image');
-const appInfo = require('../../services/app_info');
-const ws = require('../../services/ws');
-const log = require('../../services/log');
-const utils = require('../../services/utils');
+const attributeService = require('../../services/attributes.js');
+const cloneService = require('../../services/cloning.js');
+const noteService = require('../../services/notes.js');
+const dateNoteService = require('../../services/date_notes.js');
+const dateUtils = require('../../services/date_utils.js');
+const imageService = require('../../services/image.js');
+const appInfo = require('../../services/app_info.js');
+const ws = require('../../services/ws.js');
+const log = require('../../services/log.js');
+const utils = require('../../services/utils.js');
 const path = require('path');
-const htmlSanitizer = require('../../services/html_sanitizer');
-const {formatAttrForSearch} = require("../../services/attribute_formatter");
+const htmlSanitizer = require('../../services/html_sanitizer.js');
+const {formatAttrForSearch} = require('../../services/attribute_formatter.js');
 const jsdom = require("jsdom");
 const { JSDOM } = jsdom;
 
@@ -153,8 +153,9 @@ function processContent(images, note, content) {
             const buffer = Buffer.from(dataUrl.split(",")[1], 'base64');
 
             const attachment = imageService.saveImageToAttachment(note.noteId, buffer, filename, true);
-            const sanitizedTitle = attachment.title.replace(/[^a-z0-9-.]/gi, "");
-            const url = `api/attachments/${attachment.attachmentId}/image/${sanitizedTitle}`;
+
+            const encodedTitle = encodeURIComponent(attachment.title);
+            const url = `api/attachments/${attachment.attachmentId}/image/${encodedTitle}`;
 
             log.info(`Replacing '${imageId}' with '${url}' in note '${note.noteId}'`);
 

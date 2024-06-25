@@ -1,9 +1,9 @@
-const BUILTIN_ATTRIBUTES = require("./builtin_attributes");
+const BUILTIN_ATTRIBUTES = require('./builtin_attributes.js');
 const fs = require("fs-extra");
-const dataDir = require("./data_dir");
-const dateUtils = require("./date_utils");
+const dataDir = require('./data_dir.js');
+const dateUtils = require('./date_utils.js');
 const Database = require("better-sqlite3");
-const sql = require("./sql");
+const sql = require('./sql.js');
 const path = require("path");
 
 function getFullAnonymizationScript() {
@@ -39,7 +39,13 @@ function getLightAnonymizationScript() {
                 SELECT blobId FROM notes WHERE mime IN ('application/javascript;env=backend', 'application/javascript;env=frontend')
               UNION ALL
                 SELECT blobId FROM revisions WHERE mime IN ('application/javascript;env=backend', 'application/javascript;env=frontend')
-            );`;
+            );
+
+            UPDATE options SET value = 'anonymized' WHERE name IN
+                  ('documentId', 'documentSecret', 'encryptedDataKey',
+                   'passwordVerificationHash', 'passwordVerificationSalt',
+                   'passwordDerivedKeySalt', 'username', 'syncServerHost', 'syncProxy')
+              AND value != '';`;
 }
 
 async function createAnonymizedCopy(type) {

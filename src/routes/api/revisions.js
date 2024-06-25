@@ -1,13 +1,14 @@
 "use strict";
 
-const beccaService = require('../../becca/becca_service');
-const revisionService = require('../../services/revisions');
-const utils = require('../../services/utils');
-const sql = require('../../services/sql');
-const cls = require('../../services/cls');
+const beccaService = require('../../becca/becca_service.js');
+const revisionService = require('../../services/revisions.js');
+const utils = require('../../services/utils.js');
+const sql = require('../../services/sql.js');
+const cls = require('../../services/cls.js');
 const path = require('path');
-const becca = require("../../becca/becca");
-const blobService = require("../../services/blob");
+const becca = require('../../becca/becca.js');
+const blobService = require('../../services/blob.js');
+const eraseService = require("../../services/erase.js");
 
 function getRevisionBlob(req) {
     const preview = req.query.preview === 'true';
@@ -88,11 +89,11 @@ function eraseAllRevisions(req) {
     const revisionIdsToErase = sql.getColumn('SELECT revisionId FROM revisions WHERE noteId = ?',
         [req.params.noteId]);
 
-    revisionService.eraseRevisions(revisionIdsToErase);
+    eraseService.eraseRevisions(revisionIdsToErase);
 }
 
 function eraseRevision(req) {
-    revisionService.eraseRevisions([req.params.revisionId]);
+    eraseService.eraseRevisions([req.params.revisionId]);
 }
 
 function restoreRevision(req) {

@@ -1,10 +1,10 @@
 "use strict";
 
-const sql = require('./sql');
-const log = require('./log');
-const BBranch = require('../becca/entities/bbranch');
-const entityChangesService = require('./entity_changes');
-const becca = require('../becca/becca');
+const sql = require('./sql.js');
+const log = require('./log.js');
+const BBranch = require('../becca/entities/bbranch.js');
+const entityChangesService = require('./entity_changes.js');
+const becca = require('../becca/becca.js');
 
 function validateParentChild(parentNoteId, childNoteId, branchId = null) {
     if (['root', '_hidden', '_share', '_lbRoot', '_lbAvailableLaunchers', '_lbVisibleLaunchers'].includes(childNoteId)) {
@@ -209,8 +209,9 @@ function sortNotesIfNeeded(parentNoteId) {
 function setNoteToParent(noteId, prefix, parentNoteId) {
     const parentNote = becca.getNote(parentNoteId);
 
-    if (!parentNote) {
-        throw new Error(`Cannot move note to deleted parent note '${parentNoteId}'`);
+    if (parentNoteId && !parentNote) {
+        // null parentNoteId is a valid value
+        throw new Error(`Cannot move note to deleted / missing parent note '${parentNoteId}'`);
     }
 
     // case where there might be more such branches is ignored. It's expected there should be just one

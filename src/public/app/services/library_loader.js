@@ -28,14 +28,14 @@ const ESLINT = {js: ["libraries/eslint.js"]};
 const RELATION_MAP = {
     js: [
         "libraries/jsplumb.js",
-        "libraries/panzoom.js"
+        "node_modules/panzoom/dist/panzoom.min.js"
     ],
     css: [
         "stylesheets/relation_map.css"
     ]
 };
 
-const PRINT_THIS = {js: ["libraries/printThis.js"]};
+const PRINT_THIS = {js: ["node_modules/print-this/printThis.js"]};
 
 const CALENDAR_WIDGET = {css: ["stylesheets/calendar.css"]};
 
@@ -51,11 +51,11 @@ const WHEEL_ZOOM = {
 };
 
 const FORCE_GRAPH = {
-    js: [ "libraries/force-graph.min.js"]
+    js: [ "node_modules/force-graph/dist/force-graph.min.js"]
 };
 
 const MERMAID = {
-    js: [ "libraries/mermaid.min.js" ]
+    js: [ "node_modules/mermaid/dist/mermaid.min.js" ]
 }
 
 const EXCALIDRAW = {

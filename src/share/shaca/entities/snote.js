@@ -1,8 +1,8 @@
 "use strict";
 
-const sql = require('../../sql');
-const utils = require('../../../services/utils');
-const AbstractShacaEntity = require('./abstract_shaca_entity');
+const sql = require('../../sql.js');
+const utils = require('../../../services/utils.js');
+const AbstractShacaEntity = require('./abstract_shaca_entity.js');
 const escape = require('escape-html');
 
 const LABEL = 'label';
@@ -497,6 +497,10 @@ class SNote extends AbstractShacaEntity {
 
     get escapedTitle() {
         return escape(this.title);
+    }
+
+    get encodedTitle() {
+        return encodeURIComponent(this.title);
     }
 
     getPojo() {

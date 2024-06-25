@@ -1,9 +1,9 @@
 "use strict";
 
-const log = require('./log');
-const sql = require('./sql');
-const protectedSessionService = require("./protected_session");
-const dateUtils = require("./date_utils");
+const log = require('./log.js');
+const sql = require('./sql.js');
+const protectedSessionService = require('./protected_session.js');
+const dateUtils = require('./date_utils.js');
 
 /**
  * @param {BNote} note
@@ -46,18 +46,6 @@ function protectRevisions(note) {
     }
 }
 
-function eraseRevisions(revisionIdsToErase) {
-    if (revisionIdsToErase.length === 0) {
-        return;
-    }
-
-    log.info(`Removing revisions: ${JSON.stringify(revisionIdsToErase)}`);
-
-    sql.executeMany(`DELETE FROM revisions WHERE revisionId IN (???)`, revisionIdsToErase);
-    sql.executeMany(`UPDATE entity_changes SET isErased = 1, utcDateChanged = '${dateUtils.utcNowDateTime()}' WHERE entityName = 'revisions' AND entityId IN (???)`, revisionIdsToErase);
-}
-
 module.exports = {
-    protectRevisions,
-    eraseRevisions
+    protectRevisions
 };

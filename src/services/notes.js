@@ -1,27 +1,27 @@
-const sql = require('./sql');
-const optionService = require('./options');
-const dateUtils = require('./date_utils');
-const entityChangesService = require('./entity_changes');
-const eventService = require('./events');
-const cls = require('../services/cls');
-const protectedSessionService = require('../services/protected_session');
-const log = require('../services/log');
-const utils = require('../services/utils');
-const revisionService = require('./revisions');
-const request = require('./request');
+const sql = require('./sql.js');
+const optionService = require('./options.js');
+const dateUtils = require('./date_utils.js');
+const entityChangesService = require('./entity_changes.js');
+const eventService = require('./events.js');
+const cls = require('../services/cls.js');
+const protectedSessionService = require('../services/protected_session.js');
+const log = require('../services/log.js');
+const utils = require('../services/utils.js');
+const revisionService = require('./revisions.js');
+const request = require('./request.js');
 const path = require('path');
 const url = require('url');
-const becca = require('../becca/becca');
-const BBranch = require('../becca/entities/bbranch');
-const BNote = require('../becca/entities/bnote');
-const BAttribute = require('../becca/entities/battribute');
-const BAttachment = require("../becca/entities/battachment");
+const becca = require('../becca/becca.js');
+const BBranch = require('../becca/entities/bbranch.js');
+const BNote = require('../becca/entities/bnote.js');
+const BAttribute = require('../becca/entities/battribute.js');
+const BAttachment = require('../becca/entities/battachment.js');
 const dayjs = require("dayjs");
-const htmlSanitizer = require("./html_sanitizer");
-const ValidationError = require("../errors/validation_error");
-const noteTypesService = require("./note_types");
+const htmlSanitizer = require('./html_sanitizer.js');
+const ValidationError = require('../errors/validation_error.js');
+const noteTypesService = require('./note_types.js');
 const fs = require("fs");
-const ws = require("./ws");
+const ws = require('./ws.js');
 const html2plaintext = require('html2plaintext')
 
 /** @param {BNote} parentNote */
@@ -458,19 +458,26 @@ function findIncludeNoteLinks(content, foundLinks) {
 }
 
 function findRelationMapLinks(content, foundLinks) {
-    const obj = JSON.parse(content);
+    try {
+        const obj = JSON.parse(content);
 
-    for (const note of obj.notes) {
-        foundLinks.push({
-            name: 'relationMapLink',
-            value: note.noteId
-        });
+        for (const note of obj.notes) {
+            foundLinks.push({
+                name: 'relationMapLink',
+                value: note.noteId
+            });
+        }
+    }
+    catch (e) {
+        log.error("Could not scan for relation map links: " + e.message);
     }
 }
 
 const imageUrlToAttachmentIdMapping = {};
 
 async function downloadImage(noteId, imageUrl) {
+    const unescapedUrl = utils.unescapeHtml(imageUrl);
+
     try {
         let imageBuffer;
 
@@ -487,14 +494,14 @@ async function downloadImage(noteId, imageUrl) {
                 });
             });
         } else {
-            imageBuffer = await request.getImage(imageUrl);
+            imageBuffer = await request.getImage(unescapedUrl);
         }
 
-        const parsedUrl = url.parse(imageUrl);
+        const parsedUrl = url.parse(unescapedUrl);
         const title = path.basename(parsedUrl.pathname);
 
-        const imageService = require('../services/image');
-        const {attachment} = imageService.saveImageToAttachment(noteId, imageBuffer, title, true, true);
+        const imageService = require('../services/image.js');
+        const attachment = imageService.saveImageToAttachment(noteId, imageBuffer, title, true, true);
 
         imageUrlToAttachmentIdMapping[imageUrl] = attachment.attachmentId;
 
@@ -511,7 +518,7 @@ const downloadImagePromises = {};
 function replaceUrl(content, url, attachment) {
     const quotedUrl = utils.quoteRegex(url);
 
-    return content.replace(new RegExp(`\\s+src=[\"']${quotedUrl}[\"']`, "ig"), ` src="api/attachments/${encodeURIComponent(attachment.title)}/image"`);
+    return content.replace(new RegExp(`\\s+src=[\"']${quotedUrl}[\"']`, "ig"), ` src="api/attachments/${attachment.attachmentId}/image/${encodeURIComponent(attachment.title)}"`);
 }
 
 function downloadImages(noteId, content) {
@@ -526,12 +533,12 @@ function downloadImages(noteId, content) {
             const imageBase64 = url.substr(inlineImageMatch[0].length);
             const imageBuffer = Buffer.from(imageBase64, 'base64');
 
-            const imageService = require('../services/image');
+            const imageService = require('../services/image.js');
             const attachment = imageService.saveImageToAttachment(noteId, imageBuffer, "inline image", true, true);
 
-            const sanitizedTitle = attachment.title.replace(/[^a-z0-9-.]/gi, "");
+            const encodedTitle = encodeURIComponent(attachment.title);
 
-            content = `${content.substr(0, imageMatch.index)}<img src="api/attachments/${attachment.attachmentId}/image/${sanitizedTitle}"${content.substr(imageMatch.index + imageMatch[0].length)}`;
+            content = `${content.substr(0, imageMatch.index)}<img src="api/attachments/${attachment.attachmentId}/image/${encodedTitle}"${content.substr(imageMatch.index + imageMatch[0].length)}`;
         }
         else if (!url.includes('api/images/') && !/api\/attachments\/.+\/image\/?.*/.test(url)
             // this is an exception for the web clipper's "imageId"
@@ -635,6 +642,10 @@ function saveAttachments(note, content) {
 
         content = `${content.substr(0, attachmentMatch.index)}<a class="reference-link" href="#root/${note.noteId}?viewMode=attachments&attachmentId=${attachment.attachmentId}">${title}</a>${content.substr(attachmentMatch.index + attachmentMatch[0].length)}`;
     }
+
+    // removing absolute references to server to keep it working between instances,
+    // we also omit / at the beginning to keep the paths relative
+    content = content.replace(/src="[^"]*\/api\/attachments\//g, 'src="api/attachments/');
 
     return content;
 }
@@ -889,6 +900,15 @@ function scanForLinks(note, content) {
  * Things which have to be executed after updating content, but asynchronously (separate transaction)
  */
 async function asyncPostProcessContent(note, content) {
+    if (cls.isMigrationRunning()) {
+        // this is rarely needed for migrations, but can cause trouble by e.g. triggering downloads
+        return;
+    }
+
+    if (note.hasStringContent() && !utils.isString(content)) {
+        content = content.toString();
+    }
+
     scanForLinks(note, content);
 }
 

@@ -1,9 +1,9 @@
 "use strict";
 
-const utils = require('./utils');
-const log = require('./log');
+const utils = require('./utils.js');
+const log = require('./log.js');
 const url = require('url');
-const syncOptions = require('./sync_options');
+const syncOptions = require('./sync_options.js');
 
 // this service provides abstraction over node's HTTP/HTTPS and electron net.client APIs
 // this allows supporting system proxy
@@ -63,10 +63,15 @@ function exec(opts) {
                 }
 
                 let responseStr = '';
+                let chunks = [];
 
-                response.on('data', chunk => responseStr += chunk);
+                response.on('data', chunk => chunks.push(chunk));
 
                 response.on('end', () => {
+                    // use Buffer instead of string concatenation to avoid implicit decoding for each chunk
+                    // decode the entire data chunks explicitly as utf-8
+                    responseStr = Buffer.concat(chunks).toString('utf-8')
+
                     if ([200, 201, 204].includes(response.statusCode)) {
                         try {
                             const jsonObj = responseStr.trim() ? JSON.parse(responseStr) : null;

@@ -1,22 +1,25 @@
 "use strict";
 
-const sql = require('./sql');
-const sqlInit = require('./sql_init');
-const log = require('./log');
-const ws = require('./ws');
-const syncMutexService = require('./sync_mutex');
-const cls = require('./cls');
-const entityChangesService = require('./entity_changes');
-const optionsService = require('./options');
-const BBranch = require('../becca/entities/bbranch');
-const revisionService = require('./revisions');
-const becca = require("../becca/becca");
-const utils = require("../services/utils");
-const eraseService = require("../services/erase");
-const {sanitizeAttributeName} = require("./sanitize_attribute_name");
-const noteTypes = require("../services/note_types").getNoteTypeNames();
+const sql = require('./sql.js');
+const sqlInit = require('./sql_init.js');
+const log = require('./log.js');
+const ws = require('./ws.js');
+const syncMutexService = require('./sync_mutex.js');
+const cls = require('./cls.js');
+const entityChangesService = require('./entity_changes.js');
+const optionsService = require('./options.js');
+const BBranch = require('../becca/entities/bbranch.js');
+const revisionService = require('./revisions.js');
+const becca = require('../becca/becca.js');
+const utils = require('../services/utils.js');
+const eraseService = require('../services/erase.js');
+const {sanitizeAttributeName} = require('./sanitize_attribute_name.js');
+const noteTypes = require('../services/note_types.js').getNoteTypeNames();
 
 class ConsistencyChecks {
+    /**
+     * @param autoFix - automatically fix all encountered problems. False is only for debugging during development (fail fast)
+     */
     constructor(autoFix) {
         this.autoFix = autoFix;
         this.unrecoveredConsistencyErrors = false;
@@ -467,7 +470,7 @@ class ConsistencyChecks {
                     WHERE blobs.blobId IS NULL`,
             ({revisionId, blobId}) => {
                 if (this.autoFix) {
-                    revisionService.eraseRevisions([revisionId]);
+                    eraseService.eraseRevisions([revisionId]);
 
                     this.reloadNeeded = true;
 
@@ -763,7 +766,7 @@ class ConsistencyChecks {
         }
 
         if (this.reloadNeeded) {
-            require("../becca/becca_loader").reload("consistency checks need becca reload");
+            require('../becca/becca_loader.js').reload("consistency checks need becca reload");
         }
 
         return !this.unrecoveredConsistencyErrors;
