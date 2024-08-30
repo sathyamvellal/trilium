@@ -6,7 +6,7 @@ let etapiAuthToken;
 const getEtapiAuthorizationHeader = () => "Basic " + Buffer.from(`etapi:${etapiAuthToken}`).toString('base64');
 
 const PORT = '9999';
-const HOST = 'http://localhost:' + PORT;
+const HOST = 'http://0.0.0.0:' + PORT;
 
 function describeEtapi(description, specDefinitions) {
     describe(description, () => {
