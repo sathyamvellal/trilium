@@ -272,7 +272,7 @@ function getDayNote(dateStr, rootNoteLabel, rootNote, params) {
     sql.transactional(() => {
         dateNote = createNote(weekNote, noteTitle);
 
-        if (params.labeledDateNote == "true") {
+        if (params.labeledDayNote == "true") {
             attributeService.createLabel(dateNote.noteId, getDateLabel(rootNoteLabel), dateStr.substr(0, 10));
         }
 

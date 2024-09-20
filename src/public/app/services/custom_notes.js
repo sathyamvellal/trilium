@@ -4,7 +4,7 @@ import ws from "./ws.js";
 
 var defaultParams = {
     startOfTheWeek: 'monday',
-    labeledDateNote: true,
+    labeledDayNote: true,
     labeledWeekNote: true,
     labeledMonthNote: true,
 };
