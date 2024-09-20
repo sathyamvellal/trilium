@@ -198,9 +198,9 @@ const HIDDEN_SUBTREE_DEFINITION = {
                                 { type: 'label', name: 'desktopOnly' }
                             ] },
                         { id: '_lbNoteMap', title: 'Note Map', type: 'launcher', targetNoteId: '_globalNoteMap', icon: 'bx bx-map-alt' },
-                        { id: '_lbCalendar', title: 'Logs', type: 'launcher', builtinWidget: 'calendar', icon: 'bx bx-calendar', calendarRootLabel: 'logRoot', calendarNoteType: 'week', calendarStartOfTheWeek: 'monday' },
-                        { id: '_lbCalendarRecords', title: 'Records', type: 'launcher', builtinWidget: 'calendar', icon: 'bx bx-receipt', calendarRootLabel: 'recordsRoot', calendarNoteType: 'week', calendarStartOfTheWeek: 'monday' },
-                        { id: '_lbCalendarJournal', title: 'Journal', type: 'launcher', builtinWidget: 'calendar', icon: 'bx bx-book', calendarRootLabel: 'journalRoot', calendarNoteType: 'week', calendarStartOfTheWeek: 'monday' },
+                        { id: '_lbCalendar', title: 'Logs', type: 'launcher', builtinWidget: 'calendar', icon: 'bx bx-calendar', calendarRootLabel: 'logRoot', calendarNoteType: 'date', calendarStartOfTheWeek: 'monday' },
+                        { id: '_lbCalendarRecords', title: 'Records', type: 'launcher', builtinWidget: 'calendar', icon: 'bx bx-receipt', calendarRootLabel: 'recordsRoot', calendarNoteType: 'date', calendarStartOfTheWeek: 'monday' },
+                        { id: '_lbCalendarJournal', title: 'Journal', type: 'launcher', builtinWidget: 'calendar', icon: 'bx bx-book', calendarRootLabel: 'journalRoot', calendarNoteType: 'date', calendarStartOfTheWeek: 'monday' },
                         { id: '_lbRecentChanges', title: 'Recent Changes', type: 'launcher', command: 'showRecentChanges', icon: 'bx bx-history', attributes: [
                                 { type: 'label', name: 'desktopOnly' }
                             ] },

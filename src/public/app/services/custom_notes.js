@@ -10,7 +10,7 @@ var defaultParams = {
 };
 
 /** @return {NoteShort} */
-async function getDateNote(rootNoteLabel, date, params={}) {
+async function getDayNote(rootNoteLabel, date, params={}) {
     params = Object.assign({}, defaultParams, params);
     const note = await server.get('custom-notes/' + rootNoteLabel + '/date/' + date + '?' + new URLSearchParams(params), "custom-note");
 
@@ -50,7 +50,7 @@ async function getYearNote(rootNoteLabel, date, params={}) {
 }
 
 export default {
-    getDateNote,
+    getDayNote,
     getWeekNote,
     getMonthNote,
     getYearNote,

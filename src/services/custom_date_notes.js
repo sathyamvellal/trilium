@@ -240,7 +240,7 @@ function getWeekNote(dateStr, rootNoteLabel, rootNote, params) {
     return weekNote;
 }
 
-function getDateNoteTitle(dateNoteTitlePattern, rootNote, dayNumber, dateObj) {
+function getDayNoteTitle(dateNoteTitlePattern, rootNote, dayNumber, dateObj) {
     const pattern = dateNoteTitlePattern || rootNote.getOwnedLabelValue("datePattern") || "{dayInMonthPadded} - {weekDay}";
     const weekDay = DAYS[dateObj.getDay()];
     const monthNumber = dateUtils.utcDateStr(dateObj).substr(5, 2);
@@ -255,7 +255,7 @@ function getDateNoteTitle(dateNoteTitlePattern, rootNote, dayNumber, dateObj) {
 }
 
 /** @return {Note} */
-function getDateNote(dateStr, rootNoteLabel, rootNote, params) {
+function getDayNote(dateStr, rootNoteLabel, rootNote, params) {
     let dateNote = attributeService.getNoteWithLabel(getDateLabel(rootNoteLabel), dateStr);
 
     if (dateNote) {
@@ -267,7 +267,7 @@ function getDateNote(dateStr, rootNoteLabel, rootNote, params) {
     const dayNumber = dateStr.substr(8, 2);
 
     const dateObj = dateUtils.parseLocalDate(dateStr);
-    const noteTitle = getDateNoteTitle(params.dateNoteTitlePattern, rootNote, dayNumber, dateObj);
+    const noteTitle = getDayNoteTitle(params.dateNoteTitlePattern, rootNote, dayNumber, dateObj);
 
     sql.transactional(() => {
         dateNote = createNote(weekNote, noteTitle);
@@ -291,5 +291,5 @@ module.exports = {
     getYearNote,
     getMonthNote,
     getWeekNote,
-    getDateNote,
+    getDayNote,
 };

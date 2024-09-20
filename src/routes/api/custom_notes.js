@@ -2,8 +2,8 @@
 
 const customDateNoteService = require('../../services/custom_date_notes.js');
 
-function getDateNote(req) {
-    return customDateNoteService.getDateNote(req.params.date, req.params.customRoot, null, req.query);
+function getDayNote(req) {
+    return customDateNoteService.getDayNote(req.params.date, req.params.customRoot, null, req.query);
 }
 
 function getWeekNote(req) {
@@ -19,7 +19,7 @@ function getYearNote(req) {
 }
 
 module.exports = {
-    getDateNote,
+    getDayNote,
     getWeekNote,
     getMonthNote,
     getYearNote,

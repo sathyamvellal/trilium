@@ -566,7 +566,7 @@ function FrontendScriptApi(startNote, currentNote, originEntity = null, $contain
      * @param {string} date - e.g. "2019-04-29"
      * @return {Promise<NoteShort>}
      */
-     this.getCustomDateNote = customNotesService.getDateNote;
+     this.getCustomDateNote = customNotesService.getDayNote;
 
     /**
      * Returns custom week-note. If it doesn't exist, it is automatically created.

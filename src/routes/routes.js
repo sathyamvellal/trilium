@@ -202,7 +202,7 @@ function register(app) {
     apiRoute(GET, '/api/attribute-names', attributesRoute.getAttributeNames);
     apiRoute(GET, '/api/attribute-values/:attributeName', attributesRoute.getValuesForAttribute);
 
-    apiRoute(GET, '/api/custom-notes/:customRoot/date/:date', customNotesRoute.getDateNote);
+    apiRoute(GET, '/api/custom-notes/:customRoot/date/:date', customNotesRoute.getDayNote);
     apiRoute(GET, '/api/custom-notes/:customRoot/week/:date', customNotesRoute.getWeekNote);
     apiRoute(GET, '/api/custom-notes/:customRoot/month/:date', customNotesRoute.getMonthNote);
     apiRoute(GET, '/api/custom-notes/:customRoot/year/:date', customNotesRoute.getYearNote);
