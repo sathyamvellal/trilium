@@ -1,14 +1,15 @@
 /*
  * This file resolves trilium data path in this order of priority:
  * - case A) if TRILIUM_DATA_DIR environment variable exists, then its value is used as the path
- * - case B) if "trilium-data" dir exists directly in the home dir, then it is used
- * - case C) based on OS convention, if the "app data directory" exists, we'll use or create "trilium-data" directory there
- * - case D) as a fallback if the previous step fails, we'll use home dir
+ * - case B) if "trilium-data" dir exists in the installation directory, then it is used
+ * - case C) if "trilium-data" dir exists directly in the home dir, then it is used
+ * - case D) based on OS convention, if the "app data directory" exists, we'll use or create "trilium-data" directory there
+ * - case E) as a fallback if the previous step fails, we'll use home dir
  */
 
 import fs from "fs";
 import os from "os";
-import { join as pathJoin } from "path";
+import { dirname, join as pathJoin } from "path";
 
 const DIR_NAME = "trilium-data";
 const FOLDER_PERMISSIONS = 0o700;
@@ -21,12 +22,18 @@ export function getTriliumDataDir(dataDirName: string) {
     }
 
     // case B
+    const installDataPath = getInstallDirDataPath(dataDirName);
+    if (installDataPath) {
+        return installDataPath;
+    }
+
+    // case C
     const homePath = pathJoin(os.homedir(), dataDirName);
     if (fs.existsSync(homePath)) {
         return homePath;
     }
 
-    // case C
+    // case D
     const platformAppDataDir = getPlatformAppDataDir(os.platform(), process.env.APPDATA);
     if (platformAppDataDir && fs.existsSync(platformAppDataDir)) {
         const appDataDirPath = pathJoin(platformAppDataDir, dataDirName);
@@ -34,9 +41,40 @@ export function getTriliumDataDir(dataDirName: string) {
         return appDataDirPath;
     }
 
-    // case D
+    // case E
     createDirIfNotExisting(homePath);
     return homePath;
+}
+
+export function getInstallDirDataPath(dataDirName: string, platform: ReturnType<typeof os.platform> = os.platform(), executablePath: string = getExecutablePath(platform)) {
+    const installDir = getExecutableInstallDir(platform, executablePath);
+    const installDataPath = pathJoin(installDir, dataDirName);
+
+    if (fs.existsSync(installDataPath) && fs.statSync(installDataPath).isDirectory()) {
+        return installDataPath;
+    }
+
+    return null;
+}
+
+function getExecutablePath(platform: ReturnType<typeof os.platform>) {
+    if (platform === "linux" && process.env.APPIMAGE) {
+        return process.env.APPIMAGE;
+    }
+
+    return process.execPath;
+}
+
+export function getExecutableInstallDir(platform: ReturnType<typeof os.platform>, executablePath: string) {
+    if (platform === "darwin") {
+        const appBundleMatch = executablePath.match(/^(.*\.app)(?:\/|$)/);
+
+        if (appBundleMatch?.[1]) {
+            return dirname(appBundleMatch[1]);
+        }
+    }
+
+    return dirname(executablePath);
 }
 
 export function getDataDirs(TRILIUM_DATA_DIR: string) {
